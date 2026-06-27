@@ -26,7 +26,6 @@
 <body class="bg-bg flex justify-center text-gray-900 h-screen overflow-hidden antialiased" onload="initApp()">
     <div class="w-full max-w-md bg-surface h-full flex flex-col relative shadow-xl overflow-hidden">
         
-        <!-- ヘッダー -->
         <header class="pt-12 pb-4 px-6 bg-surface z-20 shrink-0 border-b border-gray-100 flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-extrabold tracking-tight text-brand">BizLog</h1>
@@ -40,7 +39,6 @@
             </button>
         </header>
 
-        <!-- タブ -->
         <div class="flex px-6 pt-2 bg-surface shrink-0 border-b border-gray-200 z-10">
             <button onclick="switchTab('timeline')" id="tab-timeline" class="flex-1 pb-3 pt-2 text-[13px] tab-active transition-colors">タイムライン</button>
             <button onclick="switchTab('tasks')" id="tab-tasks" class="flex-1 pb-3 pt-2 text-[13px] tab-inactive transition-colors flex items-center justify-center gap-1.5">
@@ -50,7 +48,6 @@
 
         <main class="flex-1 overflow-y-auto no-scrollbar flex flex-col relative bg-bg p-6">
             
-            <!-- タイムライン・ビュー -->
             <div id="view-timeline" class="space-y-6 relative">
                 <div class="absolute left-[11px] top-2 bottom-0 w-0.5 bg-gray-200" id="timeline-line" style="display: none;"></div>
                 <div id="timeline-container">
@@ -62,7 +59,6 @@
                 </div>
             </div>
 
-            <!-- タスクダッシュボード・ビュー -->
             <div id="view-tasks" class="hidden space-y-4">
                 <div class="flex items-center justify-between mb-2">
                     <h2 class="text-[12px] font-bold text-gray-400 tracking-wider">ACTION ITEMS</h2>
@@ -75,12 +71,10 @@
             </div>
         </main>
 
-        <!-- 追加ボタン (FAB) -->
         <button onclick="openMemoModal()" class="absolute bottom-6 right-6 w-14 h-14 bg-brand rounded-full shadow-lg shadow-black/20 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-30">
             <i data-lucide="plus" class="w-6 h-6 text-white"></i>
         </button>
 
-        <!-- 手動追加/音声アップロードモーダル -->
         <div id="memo-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex flex-col justify-end backdrop-blur-sm transition-opacity">
             <div id="memo-modal-content" class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300">
                 <div class="flex justify-between items-center mb-4">
@@ -92,12 +86,12 @@
                 
                 <p class="text-[12px] text-gray-500 mb-4">音声ファイルかテキストを入力して、AIに解析を依頼します。</p>
                 
-                <!-- 音声ファイルアップロードエリア -->
                 <div class="mb-4">
                     <div class="relative border-2 border-dashed border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition cursor-pointer flex flex-col items-center justify-center group" onclick="document.getElementById('audio-file').click()">
                         <i data-lucide="upload" id="upload-icon" class="w-6 h-6 text-gray-400 group-hover:text-brand transition mb-2"></i>
                         <span class="text-[12px] font-semibold text-gray-600 text-center" id="file-name-display">音声ファイルを選択<br>(またはタップして録音)</span>
-                        <input type="file" id="audio-file" accept="audio/*" class="hidden" onchange="handleFileSelect(this)">
+                        
+                        <input type="file" id="audio-file" accept="audio/*,.m4a,.mp4,.mp3,.wav,video/mp4" class="hidden" onchange="handleFileSelect(this)">
                     </div>
                 </div>
 
@@ -109,7 +103,6 @@
 
                 <textarea id="memo-input" class="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none mb-6" placeholder="※音声を選んだ場合は、ここは空欄でもOKです。"></textarea>
                 
-                <!-- ローディング表示 -->
                 <div id="loading-indicator" class="hidden flex-col items-center justify-center gap-3 mb-4 py-4">
                     <div class="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
                     <span id="loading-text" class="text-[11px] font-bold text-brand animate-pulse text-center">準備中...</span>
@@ -124,7 +117,6 @@
             </div>
         </div>
 
-        <!-- 設定モーダル -->
         <div id="settings-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex flex-col justify-end backdrop-blur-sm transition-opacity">
             <div id="settings-modal-content" class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300 h-[85vh] flex flex-col">
                 <div class="flex justify-between items-center mb-6">
@@ -135,7 +127,6 @@
                 </div>
                 
                 <div class="flex-1 overflow-y-auto no-scrollbar pb-6 space-y-6">
-                    <!-- APIキー設定 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-2">1. Gemini API Key (必須)</label>
                         <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="AQ.xxx または AIzaSy...">
@@ -144,7 +135,6 @@
 
                     <div class="h-px bg-gray-100"></div>
 
-                    <!-- カレンダー連携設定 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-2">2. Googleカレンダー・ToDo 連携窓口</label>
                         <input type="text" id="gas-url-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent mb-2" placeholder="https://script.google.com/macros/s/...">
@@ -159,7 +149,6 @@
 
                     <div class="h-px bg-gray-100"></div>
 
-                    <!-- データ削除 -->
                     <div>
                         <button onclick="clearAllData()" class="w-full bg-red-50 text-red-600 font-bold py-3 rounded-xl text-sm border border-red-100">
                             すべての履歴を削除する
@@ -175,7 +164,6 @@
             </div>
         </div>
 
-        <!-- 汎用メッセージトースト -->
         <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-[100] text-center w-3/4 max-w-sm">
             メッセージ
         </div>
@@ -185,7 +173,6 @@
     <script>
         lucide.createIcons();
 
-        // appStateにGASのURLとSecretを追加
         let appState = { apiKey: '', gasUrl: '', gasSecret: '', logs: [] };
         let selectedFileObj = null; 
 
@@ -448,7 +435,6 @@
                         tasks: tasks.map(t => t.text)
                     };
 
-                    // GAS特有のCORSエラーを回避するため、あえて text/plain で送る
                     fetch(appState.gasUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'text/plain' },
