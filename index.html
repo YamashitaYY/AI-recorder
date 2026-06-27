@@ -127,11 +127,11 @@
                 
                 <div class="flex-1 overflow-y-auto no-scrollbar">
                     <div class="mb-6">
-                        <label class="block text-xs font-bold text-gray-500 mb-2">Gemini API Key (BYOK)</label>
+                        <label class="block text-xs font-bold text-gray-500 mb-2">Gemini API Key</label>
                         <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="AQ.xxx または AIzaSy...">
                         <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
                             Google AI Studioで取得したAPIキーを入力してください。<br>
-                            ※最新の「AQ.」から始まるキー、従来の「AIza」から始まるキーの両方に対応しています。
+                            ※キーはブラウザにのみ保存され、外部サーバーには送信されません。
                         </p>
                     </div>
 
@@ -284,7 +284,7 @@
             lucide.createIcons();
         }
 
-        // --- 根本解決版：安定版 v1 エンドポイントへの統一と自動フォールバック搭載 ---
+        // --- 原因特定！ 最新の「gemini-2.5-flash」モデルを使用 ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             
@@ -303,7 +303,6 @@
                 let fileUri = null;
                 let mimeType = null;
 
-                // 1. 音声ファイルがある場合のアップロード処理
                 if (selectedFileObj) {
                     loadingText.innerHTML = "音声をサーバーに安全に送信中...<br>※ファイルの容量によって数十秒かかります";
                     
@@ -314,8 +313,7 @@
                         else mimeType = 'audio/mp4'; 
                     }
 
-                    // 新しいAQキーでも100%確実に通る安定版 v1 規格のエンドポイント
-                    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1/files?key=${appState.apiKey}`;
+                    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${appState.apiKey}`;
                     
                     const uploadResponse = await fetch(uploadUrl, {
                         method: 'POST',
@@ -340,9 +338,8 @@
                     loadingText.innerHTML = "AIがテキストを解析しています...";
                 }
 
-                // 2. 安定版 v1 エンドポイントでのコンテンツ生成
-                // 2026年現在の環境に合わせて、安定版の v1 規格でリクエストを統一
-                let generateUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${appState.apiKey}`;
+                // 【修正】廃止された1.5ではなく、最新の gemini-2.5-flash に変更！
+                let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${appState.apiKey}`;
                 
                 const prompt = `
 以下の情報（音声またはテキスト）を解析し、構造化して指定されたJSONフォーマットのみを出力してください。
@@ -371,19 +368,6 @@
                 });
 
                 let resData = await response.json();
-                
-                // 【超堅牢化：自動フォールバック】
-                // 万が一、特定のエンドポイントやモデル名が「Not Found」を起こした場合、自動的に代替エンドポイント(v1beta)で即座に再試行する
-                if (!response.ok && (response.status === 404 || resData.error?.message.includes('not found'))) {
-                    console.log("安定版v1で404が発生したため、v1betaへフォールバックします。");
-                    generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${appState.apiKey}`;
-                    response = await fetch(generateUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: parts }] })
-                    });
-                    resData = await response.json();
-                }
 
                 if (!response.ok) {
                     throw new Error(`AI解析エラー: ${resData.error?.message || '不明なエラー'}`);
@@ -417,7 +401,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert(`処理が中断されました。\n\n【原因】\n${error.message}\n\n【対策】\nもし404エラー（Not Found）が続く場合、お使いのGoogle Cloudプロジェクト（AIrecorder）側で「Generative Language API」が有効化（Enable）されているか確認してください。`);
+                alert(`処理が中断されました。\n\n【原因】\n${error.message}`);
                 document.getElementById('memo-buttons').classList.remove('hidden');
                 document.getElementById('loading-indicator').classList.add('hidden');
                 document.getElementById('loading-indicator').classList.remove('flex');
