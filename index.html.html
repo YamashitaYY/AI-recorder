@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BizLog - Life Log & Tasks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { brand: '#111111', bg: '#F9F9FB', surface: '#FFFFFF' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .tab-active { color: #111111; font-weight: 700; border-bottom: 2px solid #111111; }
+        .tab-inactive { color: #9CA3AF; font-weight: 500; border-bottom: 2px solid transparent; }
+        .slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="bg-bg flex justify-center text-gray-900 h-screen overflow-hidden antialiased">
+    <div class="w-full max-w-md bg-surface h-full flex flex-col relative shadow-xl overflow-hidden">
+        
+        <!-- ヘッダー -->
+        <header class="pt-12 pb-4 px-6 bg-surface z-20 shrink-0 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight text-brand">BizLog</h1>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <p id="today-date" class="text-[12px] font-bold text-gray-600 tracking-wide"></p>
+                </div>
+            </div>
+            
+            <!-- 設定ボタン -->
+            <button onclick="openSettingsModal()" class="p-2 bg-gray-50 rounded-full border border-gray-200 hover:bg-gray-100 transition">
+                <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i>
+            </button>
+        </header>
+
+        <!-- タブ -->
+        <div class="flex px-6 pt-2 bg-surface shrink-0 border-b border-gray-200 z-10">
+            <button onclick="switchTab('timeline')" id="tab-timeline" class="flex-1 pb-3 pt-2 text-[13px] tab-active transition-colors">タイムライン</button>
+            <button onclick="switchTab('tasks')" id="tab-tasks" class="flex-1 pb-3 pt-2 text-[13px] tab-inactive transition-colors flex items-center justify-center gap-1.5">
+                タスク <span id="task-badge" class="bg-brand text-white text-[9px] px-1.5 py-0.5 rounded-full leading-none hidden">0</span>
+            </button>
+        </div>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar flex flex-col relative bg-bg p-6">
+            
+            <!-- タイムライン・ビュー -->
+            <div id="view-timeline" class="space-y-6 relative">
+                <div class="absolute left-[11px] top-2 bottom-0 w-0.5 bg-gray-200"></div>
+                <div id="timeline-container">
+                    <!-- JSで動的に追加されます -->
+                </div>
+                
+                <!-- 空の状態 -->
+                <div id="timeline-empty" class="hidden flex-col items-center justify-center py-20 opacity-50 relative z-10">
+                    <i data-lucide="inbox" class="w-12 h-12 text-gray-400 mb-3"></i>
+                    <p class="text-[13px] font-bold text-gray-500">記録がありません</p>
+                    <p class="text-[11px] text-gray-400 mt-2">右下の「＋」ボタンから追加してください</p>
+                </div>
+            </div>
+
+            <!-- タスクダッシュボード・ビュー -->
+            <div id="view-tasks" class="hidden space-y-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-[12px] font-bold text-gray-400 tracking-wider">ACTION ITEMS</h2>
+                </div>
+                <div class="bg-surface rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="task-container">
+                    <!-- JSで動的に追加されます -->
+                </div>
+                <!-- 空の状態 -->
+                <div id="tasks-empty" class="hidden flex-col items-center justify-center py-10 opacity-50">
+                    <p class="text-[13px] font-bold text-gray-500">未完了のタスクはありません</p>
+                </div>
+            </div>
+
+        </main>
+        
+        <!-- メモ追加ボタン (FAB) -->
+        <div class="absolute bottom-6 right-6 z-30">
+            <button onclick="openMemoModal()" class="bg-brand text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                <i data-lucide="plus" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- メモ入力用モーダル -->
+        <div id="memo-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 pb-0 transition-opacity">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transform transition-transform translate-y-full" id="memo-modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">手動で記録を追加</h2>
+                    <button onclick="closeMemoModal()" class="p-1 rounded-full hover:bg-gray-100">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <p class="text-[12px] text-gray-500 mb-4">テキストを入力し、AIに要約とタスク抽出を依頼します。</p>
+                
+                <textarea id="memo-input" class="w-full h-32 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none mb-6" placeholder="会議のメモや、タスクの走り書きを入力..."></textarea>
+                
+                <!-- 解析中インジケーター -->
+                <div id="loading-indicator" class="hidden flex items-center justify-center gap-2 mb-4">
+                    <i data-lucide="loader-2" class="w-4 h-4 text-brand animate-spin"></i>
+                    <span class="text-sm font-bold text-brand">Geminiで解析中...</span>
+                </div>
+
+                <div class="flex gap-3" id="memo-buttons">
+                    <button onclick="closeMemoModal()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">キャンセル</button>
+                    <button onclick="analyzeText()" class="flex-1 py-3 bg-brand text-white font-bold rounded-xl hover:bg-gray-800 transition flex items-center justify-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        AIで解析
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- APIキー設定用モーダル -->
+        <div id="settings-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 pb-0 transition-opacity">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transform transition-transform translate-y-full" id="settings-modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">設定 (BYOK)</h2>
+                    <button onclick="closeSettingsModal()" class="p-1 rounded-full hover:bg-gray-100">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <p class="text-[12px] text-gray-600 mb-4 leading-relaxed">
+                    Google AI Studioで発行した Gemini API キーを入力してください。<br>
+                    <span class="text-red-500 font-bold">※キーはブラウザ内部にのみ保存され、開発者のサーバーには一切送信されません。</span>
+                </p>
+                
+                <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent mb-6" placeholder="AIzaSy...">
+                
+                <div class="flex gap-3">
+                    <button onclick="closeSettingsModal()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">キャンセル</button>
+                    <button onclick="saveApiKey()" class="flex-1 py-3 bg-brand text-white font-bold rounded-xl hover:bg-gray-800 transition">
+                        保存する
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 状態管理
+        let appState = {
+            apiKey: '',
+            logs: [] // { id, time, title, summaries:[], details, tasks: [{id, text, completed}] }
+        };
+
+        // 初期化処理
+        function init() {
+            // 日付表示
+            const today = new Date();
+            document.getElementById('today-date').textContent = `今日 (${today.getMonth() + 1}月${today.getDate()}日)`;
+
+            // ローカルストレージからの読み込み
+            const storedKey = localStorage.getItem('bizlog_api_key');
+            if (storedKey) {
+                appState.apiKey = storedKey;
+                document.getElementById('api-key-input').value = storedKey;
+            }
+
+            const storedLogs = localStorage.getItem('bizlog_data');
+            if (storedLogs) {
+                try {
+                    appState.logs = JSON.parse(storedLogs);
+                } catch (e) {
+                    console.error("データのパースに失敗しました", e);
+                }
+            }
+            
+            renderTimeline();
+            renderTasks();
+        }
+
+        // タブ切り替え
+        function switchTab(tab) {
+            document.getElementById('view-timeline').classList.add('hidden');
+            document.getElementById('view-tasks').classList.add('hidden');
+            document.getElementById('tab-timeline').classList.replace('tab-active', 'tab-inactive');
+            document.getElementById('tab-tasks').classList.replace('tab-active', 'tab-inactive');
+            
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.replace('tab-inactive', 'tab-active');
+        }
+
+        // APIキーの保存
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            appState.apiKey = key;
+            localStorage.setItem('bizlog_api_key', key);
+            closeSettingsModal();
+            showMessage("APIキーを保存しました。");
+        }
+
+        // データ永続化
+        function saveData() {
+            localStorage.setItem('bizlog_data', JSON.stringify(appState.logs));
+            renderTimeline();
+            renderTasks();
+        }
+
+        // --- UI Rendering ---
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            const emptyState = document.getElementById('timeline-empty');
+            container.innerHTML = '';
+
+            if (appState.logs.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+
+            // 最新のものが上に来るように逆順でループ
+            [...appState.logs].reverse().forEach((log, index) => {
+                const summaryHtml = log.summaries.map(s => `
+                    <div class="flex items-start gap-1 mb-1">
+                        <span class="font-bold text-brand mt-0.5">•</span>
+                        <span class="text-[12px] text-gray-600 leading-relaxed">${s}</span>
+                    </div>
+                `).join('');
+
+                let tasksHtml = '';
+                if(log.tasks && log.tasks.length > 0) {
+                     tasksHtml = `<div class="mt-3 pt-3 border-t border-gray-100">
+                        <p class="text-[11px] font-bold text-brand mb-1">抽出されたタスク:</p>
+                        ${log.tasks.map(t => `<p class="text-[11px] text-gray-600">・${t.text}</p>`).join('')}
+                     </div>`;
+                }
+
+                const itemHtml = `
+                <div class="relative pl-8 slide-in mb-6" style="animation-delay: ${index * 0.1}s;">
+                    <div class="absolute left-0 top-1 w-6 h-6 bg-brand rounded-full flex items-center justify-center ring-4 ring-bg z-10">
+                        <i data-lucide="check" class="w-3 h-3 text-white"></i>
+                    </div>
+                    <div class="flex justify-between items-end mb-1">
+                        <div class="text-[11px] font-bold text-gray-400 tracking-wider">${log.time}</div>
+                    </div>
+                    <div class="bg-surface rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <h3 class="text-[14px] font-bold text-brand mb-2">${log.title}</h3>
+                        ${summaryHtml}
+                        ${tasksHtml}
+                        <details class="group mt-2">
+                            <summary class="text-[11px] font-bold text-gray-400 cursor-pointer list-none flex items-center gap-1 hover:text-brand transition outline-none">
+                                <i data-lucide="chevron-right" class="w-3 h-3 transition-transform group-open:rotate-90"></i>
+                                詳細な内容を表示
+                            </summary>
+                            <div class="mt-2 pt-2 border-t border-gray-100 text-[11px] text-gray-600 leading-relaxed bg-gray-50 p-2 rounded-lg whitespace-pre-wrap">
+                                ${log.details}
+                            </div>
+                        </details>
+                        <button onclick="deleteLog('${log.id}')" class="mt-2 text-[10px] text-red-400 hover:text-red-600">削除</button>
+                    </div>
+                </div>
+                `;
+                container.insertAdjacentHTML('beforeend', itemHtml);
+            });
+            lucide.createIcons();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-container');
+            const emptyState = document.getElementById('tasks-empty');
+            const badge = document.getElementById('task-badge');
+            container.innerHTML = '';
+
+            // 全ログからタスクを展開
+            let allTasks = [];
+            appState.logs.forEach(log => {
+                if(log.tasks) {
+                    log.tasks.forEach(task => {
+                        allTasks.push({ logTitle: log.title, logId: log.id, ...task });
+                    });
+                }
+            });
+
+            // 未完了のタスクのみフィルタリング
+            const activeTasks = allTasks.filter(t => !t.completed);
+
+            if (activeTasks.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                badge.classList.add('hidden');
+                return;
+            } else {
+                container.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+                badge.classList.remove('hidden');
+                badge.textContent = activeTasks.length;
+            }
+
+            activeTasks.forEach((task, index) => {
+                const borderClass = index < activeTasks.length - 1 ? 'border-b border-gray-100' : '';
+                const itemHtml = `
+                <label class="flex items-start gap-3 p-4 ${borderClass} hover:bg-gray-50 transition cursor-pointer slide-in">
+                    <input type="checkbox" onchange="toggleTask('${task.logId}', '${task.id}')" class="mt-0.5 w-4.5 h-4.5 text-brand rounded border-gray-300 focus:ring-brand">
+                    <div>
+                        <span class="text-[13px] font-bold text-gray-800 block mb-0.5">${task.text}</span>
+                        <span class="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                            <i data-lucide="tag" class="w-3 h-3"></i> 発生元: ${task.logTitle}
+                        </span>
+                    </div>
+                </label>
+                `;
+                container.insertAdjacentHTML('beforeend', itemHtml);
+            });
+            lucide.createIcons();
+        }
+
+        // --- Logic ---
+        
+        function toggleTask(logId, taskId) {
+            const log = appState.logs.find(l => l.id === logId);
+            if (log) {
+                const task = log.tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.completed = true;
+                    saveData();
+                }
+            }
+        }
+
+        function deleteLog(logId) {
+            appState.logs = appState.logs.filter(l => l.id !== logId);
+            saveData();
+        }
+
+        async function analyzeText() {
+            const text = document.getElementById('memo-input').value.trim();
+            if (!text) return;
+            
+            if (!appState.apiKey) {
+                showMessage("先に右上の歯車アイコンからGemini APIキーを設定してください。");
+                openSettingsModal();
+                return;
+            }
+
+            // UIをローディング状態に
+            document.getElementById('memo-buttons').classList.add('hidden');
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('flex');
+
+            try {
+                const resultJson = await callGeminiAPI(text, appState.apiKey);
+                
+                // データ追加
+                const now = new Date();
+                const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                
+                // タスク配列の加工
+                const tasks = Array.isArray(resultJson.tasks) 
+                    ? resultJson.tasks.map((t, i) => ({ id: `task_${Date.now()}_${i}`, text: t, completed: false }))
+                    : [];
+
+                const newLog = {
+                    id: `log_${Date.now()}`,
+                    time: timeString,
+                    title: resultJson.title || "無題のメモ",
+                    summaries: Array.isArray(resultJson.summaryPoints) ? resultJson.summaryPoints : ["要約なし"],
+                    details: resultJson.detailedMinutes || text,
+                    tasks: tasks
+                };
+
+                appState.logs.push(newLog);
+                saveData();
+                
+                // 初期化して閉じる
+                document.getElementById('memo-input').value = '';
+                closeMemoModal();
+                showMessage("解析が完了しました！");
+
+            } catch (error) {
+                console.error(error);
+                showMessage("エラーが発生しました: " + error.message);
+            } finally {
+                // UI復元
+                document.getElementById('memo-buttons').classList.remove('hidden');
+                document.getElementById('loading-indicator').classList.add('hidden');
+                document.getElementById('loading-indicator').classList.remove('flex');
+            }
+        }
+
+        // Gemini REST APIの直接呼び出し
+        async function callGeminiAPI(text, apiKey) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            const prompt = `
+以下のテキストを解析し、構造化して必ず指定のJSON形式のみを出力してください。
+Markdownのバッククォート（\`\`\`json など）は絶対に含めず、生のJSON文字列だけを返してください。
+
+【出力JSONフォーマット】
+{
+  "title": "テキストの内容を表す短いタイトル",
+  "summaryPoints": [
+    "重要なポイントの要約1 (30文字以内)",
+    "重要なポイントの要約2 (30文字以内)"
+  ],
+  "detailedMinutes": "詳細な内容、決定事項、背景などのまとめ",
+  "tasks": [
+    "誰が何をいつまでにやるべきかの具体的なタスク1",
+    "具体的なタスク2"
+  ] // タスクがない場合は空配列 [] にする
+}
+
+【テキスト】
+${text}
+`;
+
+            const requestBody = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.2,
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || 'API request failed');
+            }
+
+            const data = await response.json();
+            const responseText = data.candidates[0].content.parts[0].text;
+            
+            // 返却されたテキストからJSON部分を抽出する安全処理
+            return parseSafeJSON(responseText);
+        }
+
+        function parseSafeJSON(text) {
+            try {
+                // markdownの修飾子がついている場合を想定して除去
+                let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                return JSON.parse(cleanText);
+            } catch (e) {
+                console.error("JSON Parse Error", text);
+                throw new Error("AIが正しいJSON形式で応答しませんでした。");
+            }
+        }
+
+        // --- Modal Control ---
+        function openMemoModal() {
+            const modal = document.getElementById('memo-modal');
+            const content = document.getElementById('memo-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeMemoModal() {
+            const modal = document.getElementById('memo-modal');
+            const content = document.getElementById('memo-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function openSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // カスタムメッセージ（alertの代わり）
+        function showMessage(msg) {
+            const el = document.createElement('div');
+            el.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-50 slide-in transition-opacity';
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
+
+        // 起動
+        init();
+    </script>
+</body>
+</html>
