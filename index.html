@@ -63,4 +63,499 @@
                 <div class="flex items-center justify-between mb-2">
                     <h2 class="text-[12px] font-bold text-gray-400 tracking-wider">ACTION ITEMS</h2>
                 </div>
-                <div class
+                <div class="bg-surface rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="tasks-container">
+                    <div class="p-6 text-center text-sm text-gray-400 font-bold">
+                        未完了のタスクはありません
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <button onclick="openMemoModal()" class="absolute bottom-6 right-6 w-14 h-14 bg-brand rounded-full shadow-lg shadow-black/20 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-30">
+            <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+        </button>
+
+        <div id="memo-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex flex-col justify-end backdrop-blur-sm transition-opacity">
+            <div id="memo-modal-content" class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">記録を追加</h2>
+                    <button onclick="closeMemoModal()" class="p-1 rounded-full hover:bg-gray-100">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <p class="text-[12px] text-gray-500 mb-4">音声ファイル（Watchの録音等）か、テキストを入力してAIに要約させます。</p>
+                
+                <div class="mb-4">
+                    <div class="relative border-2 border-dashed border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition cursor-pointer flex flex-col items-center justify-center group" onclick="document.getElementById('audio-file').click()">
+                        <i data-lucide="upload" id="upload-icon" class="w-6 h-6 text-gray-400 group-hover:text-brand transition mb-2"></i>
+                        <span class="text-[12px] font-semibold text-gray-600 text-center" id="file-name-display">音声ファイルを選択<br>(またはタップして録音)</span>
+                        <input type="file" id="audio-file" accept="audio/*" class="hidden" onchange="handleFileSelect(this)">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                    <span class="text-[10px] text-gray-400 font-bold">テキストメモ</span>
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                </div>
+
+                <textarea id="memo-input" class="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none mb-6" placeholder="※音声を選んだ場合は、ここは空欄でもOKです。"></textarea>
+                
+                <div id="loading-indicator" class="hidden flex-col items-center justify-center gap-3 mb-4 py-4">
+                    <div class="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
+                    <span id="loading-text" class="text-[11px] font-bold text-brand animate-pulse text-center">準備中...</span>
+                </div>
+
+                <div id="memo-buttons" class="flex gap-3">
+                    <button onclick="closeMemoModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl text-sm">キャンセル</button>
+                    <button onclick="analyzeData()" class="flex-1 bg-brand text-white font-bold py-3.5 rounded-xl text-sm shadow-md flex items-center justify-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> AIで解析
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex flex-col justify-end backdrop-blur-sm transition-opacity">
+            <div id="settings-modal-content" class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300 h-[80vh] flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold text-gray-900">設定</h2>
+                    <button onclick="closeSettingsModal()" class="p-1 rounded-full hover:bg-gray-100">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto no-scrollbar">
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold text-gray-500 mb-2">Gemini API Key (BYOK)</label>
+                        <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="APIキーを入力">
+                        <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                            Google AI Studioで取得したAPIキーを入力してください。<br>
+                            ※キーはブラウザにのみ保存され、外部サーバーには送信されません。
+                        </p>
+                    </div>
+
+                    <div class="mb-6">
+                        <button onclick="clearAllData()" class="w-full bg-red-50 text-red-600 font-bold py-3 rounded-xl text-sm border border-red-100">
+                            すべての履歴を削除する
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100 mt-auto">
+                    <button onclick="saveSettings()" class="w-full bg-brand text-white font-bold py-3.5 rounded-xl text-sm shadow-md">
+                        設定を保存
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-[100]">
+            メッセージ
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        let appState = { apiKey: '', logs: [] };
+        
+        let selectedFileObj = null; 
+
+        function initApp() {
+            const today = new Date();
+            document.getElementById('header-date').innerText = `今日 (${today.getMonth()+1}月${today.getDate()}日)`;
+
+            const savedKey = localStorage.getItem('bizlog_apikey');
+            if (savedKey) appState.apiKey = savedKey;
+
+            const savedLogs = localStorage.getItem('bizlog_logs');
+            if (savedLogs) {
+                appState.logs = JSON.parse(savedLogs);
+                renderData();
+            }
+            
+            if (!savedKey) {
+                setTimeout(() => openSettingsModal(), 500);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('bizlog_apikey', appState.apiKey);
+            localStorage.setItem('bizlog_logs', JSON.stringify(appState.logs));
+            renderData();
+        }
+
+        function switchTab(tab) {
+            document.getElementById('view-timeline').classList.add('hidden');
+            document.getElementById('view-tasks').classList.add('hidden');
+            document.getElementById('tab-timeline').classList.replace('tab-active', 'tab-inactive');
+            document.getElementById('tab-tasks').classList.replace('tab-active', 'tab-inactive');
+            
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.replace('tab-inactive', 'tab-active');
+        }
+
+        function showMessage(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        function openSettingsModal() {
+            document.getElementById('api-key-input').value = appState.apiKey;
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function saveSettings() {
+            appState.apiKey = document.getElementById('api-key-input').value.trim();
+            saveData();
+            closeSettingsModal();
+            showMessage('設定を保存しました');
+        }
+
+        function clearAllData() {
+            if(confirm('本当にすべての履歴とタスクを削除しますか？')) {
+                appState.logs = [];
+                saveData();
+                closeSettingsModal();
+                showMessage('データを削除しました');
+            }
+        }
+
+        function openMemoModal() {
+            if (!appState.apiKey) {
+                showMessage('先に設定からAPIキーを登録してください');
+                openSettingsModal();
+                return;
+            }
+            resetFileInput();
+            document.getElementById('memo-input').value = '';
+            document.getElementById('memo-buttons').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('hidden');
+            document.getElementById('loading-indicator').classList.remove('flex');
+            
+            const modal = document.getElementById('memo-modal');
+            const content = document.getElementById('memo-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeMemoModal() {
+            const modal = document.getElementById('memo-modal');
+            const content = document.getElementById('memo-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                selectedFileObj = input.files[0];
+                document.getElementById('file-name-display').innerHTML = `<span class="text-brand font-bold">${selectedFileObj.name}</span><br><span class="text-[10px] font-normal text-gray-400">${(selectedFileObj.size / 1024 / 1024).toFixed(2)} MB</span>`;
+                
+                const icon = document.getElementById('upload-icon');
+                icon.setAttribute('data-lucide', 'check-circle-2');
+                icon.classList.remove('text-gray-400');
+                icon.classList.add('text-brand');
+                lucide.createIcons();
+            }
+        }
+
+        function resetFileInput() {
+            selectedFileObj = null;
+            const fileInput = document.getElementById('audio-file');
+            if(fileInput) fileInput.value = '';
+            document.getElementById('file-name-display').innerHTML = '音声ファイルを選択<br>(またはタップして録音)';
+            const icon = document.getElementById('upload-icon');
+            icon.setAttribute('data-lucide', 'upload');
+            icon.classList.remove('text-brand');
+            icon.classList.add('text-gray-400');
+            lucide.createIcons();
+        }
+
+        async function analyzeData() {
+            const text = document.getElementById('memo-input').value.trim();
+            
+            if (!text && !selectedFileObj) {
+                showMessage("音声ファイルを選ぶか、テキストを入力してください。");
+                return;
+            }
+
+            document.getElementById('memo-buttons').classList.add('hidden');
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('flex');
+            
+            const loadingText = document.getElementById('loading-text');
+
+            try {
+                let fileUri = null;
+                let mimeType = null;
+
+                if (selectedFileObj) {
+                    loadingText.innerHTML = "音声をサーバーに安全に送信中...<br>※ファイルの容量によって数十秒かかります";
+                    
+                    mimeType = selectedFileObj.type;
+                    if (!mimeType) {
+                        if (selectedFileObj.name.toLowerCase().endsWith('.m4a')) mimeType = 'audio/mp4';
+                        else if (selectedFileObj.name.toLowerCase().endsWith('.mp3')) mimeType = 'audio/mp3';
+                        else mimeType = 'audio/mp4'; 
+                    }
+
+                    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${appState.apiKey}`;
+                    
+                    const uploadResponse = await fetch(uploadUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-Goog-Upload-Protocol': 'raw',
+                            'X-Goog-Upload-Command': 'start, upload, finalize',
+                            'X-Goog-Upload-Header-Content-Length': selectedFileObj.size.toString(),
+                            'X-Goog-Upload-Header-Content-Type': mimeType,
+                            'Content-Type': mimeType
+                        },
+                        body: selectedFileObj
+                    });
+
+                    const uploadResult = await uploadResponse.json();
+                    if (!uploadResponse.ok) {
+                        throw new Error(`音声の送信エラー: ${uploadResult.error?.message || '不明なエラー'}`);
+                    }
+                    
+                    fileUri = uploadResult.file.uri;
+                    loadingText.innerHTML = "送信完了！<br>AIが音声を聞き取って議事録を作成中...";
+                } else {
+                    loadingText.innerHTML = "AIがテキストを解析しています...";
+                }
+
+                const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${appState.apiKey}`;
+                
+                const prompt = `
+以下の情報（音声またはテキスト）を解析し、必ず指定されたJSONフォーマットのみを出力してください。
+余計な解説や、Markdownのバッククォート（\`\`\`json など）は絶対に含めず、生のJSONデータのみを返してください。
+
+【出力JSONフォーマット】
+{
+  "title": "内容を表す短いタイトル",
+  "summaryPoints": ["重要なポイントの要約1", "重要なポイントの要約2"],
+  "detailedMinutes": "詳細な内容、決定事項などのまとめ文章",
+  "tasks": ["具体的なタスク1", "具体的なタスク2"]
+}
+【補足テキスト情報】: ${text || 'なし'}
+`;
+                let parts = [{ text: prompt }];
+                
+                if (fileUri) {
+                    parts.push({
+                        fileData: { mimeType: mimeType, fileUri: fileUri }
+                    });
+                }
+
+                const response = await fetch(generateUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{ parts: parts }],
+                        generationConfig: { 
+                            temperature: 0.2
+                        }
+                    })
+                });
+
+                const resData = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`AI解析エラー: ${resData.error?.message || '不明なエラー'}`);
+                }
+
+                const rawJsonString = resData.candidates[0].content.parts[0].text;
+                const cleanJsonString = rawJsonString.replace(/```json\n?|```/g, '').trim();
+                const resultObj = JSON.parse(cleanJsonString);
+
+                const newLogId = Date.now().toString();
+                const tasks = (resultObj.tasks || []).map((t, i) => ({
+                    id: `${newLogId}_task_${i}`,
+                    text: t,
+                    completed: false,
+                    sourceId: newLogId
+                }));
+
+                const newLog = {
+                    id: newLogId,
+                    time: new Date().toISOString(),
+                    title: resultObj.title || '無題の記録',
+                    summaries: resultObj.summaryPoints || [],
+                    details: resultObj.detailedMinutes || '',
+                    tasks: tasks
+                };
+
+                appState.logs.unshift(newLog);
+                saveData();
+                closeMemoModal();
+                showMessage("AI解析が完了しました！");
+
+            } catch (error) {
+                console.error(error);
+                alert(`処理が中断されました。\n\n【原因】\n${error.message}`);
+                document.getElementById('memo-buttons').classList.remove('hidden');
+                document.getElementById('loading-indicator').classList.add('hidden');
+                document.getElementById('loading-indicator').classList.remove('flex');
+            }
+        }
+
+        function renderData() {
+            renderTimeline();
+            renderTasks();
+        }
+
+        function formatTime(isoString) {
+            const d = new Date(isoString);
+            return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        }
+
+        function toggleTask(taskId) {
+            appState.logs.forEach(log => {
+                log.tasks.forEach(t => {
+                    if (t.id === taskId) {
+                        t.completed = !t.completed;
+                    }
+                });
+            });
+            saveData();
+        }
+
+        function toggleDetails(logId) {
+            const el = document.getElementById(`details-${logId}`);
+            const icon = document.getElementById(`icon-${logId}`);
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                icon.style.transform = 'rotate(90deg)';
+            } else {
+                el.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function deleteLogConfirm(logId) {
+            if(confirm('この記録を削除しますか？(関連するタスクも削除されます)')) {
+                appState.logs = appState.logs.filter(l => l.id !== logId);
+                saveData();
+            }
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            const line = document.getElementById('timeline-line');
+            
+            if (appState.logs.length === 0) {
+                line.style.display = 'none';
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-48 text-gray-400">
+                        <i data-lucide="inbox" class="w-10 h-10 mb-2 opacity-50"></i>
+                        <p class="text-sm font-bold">記録がありません</p>
+                        <p class="text-[10px]">右下の「＋」ボタンから追加してください</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            line.style.display = 'block';
+            let html = '';
+
+            appState.logs.forEach(log => {
+                let summariesHtml = log.summaries.map(s => `
+                    <div class="flex items-start gap-2 mb-1.5">
+                        <span class="text-brand font-bold mt-0.5">•</span>
+                        <span class="text-[13px] text-gray-700 leading-relaxed">${s}</span>
+                    </div>
+                `).join('');
+
+                html += `
+                <div class="relative pl-8 mb-6 fade-in">
+                    <div class="absolute left-0 top-1 w-6 h-6 bg-brand rounded-full flex items-center justify-center ring-4 ring-bg z-10">
+                        <i data-lucide="file-audio" class="w-3 h-3 text-white"></i>
+                    </div>
+                    <div class="flex justify-between items-end mb-1">
+                        <div class="text-[11px] font-bold text-gray-400 tracking-wider">${formatTime(log.time)}</div>
+                        <button onclick="deleteLogConfirm('${log.id}')" class="text-gray-300 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                    <div class="bg-surface rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <h3 class="text-[15px] font-bold text-brand mb-3 leading-tight">${log.title}</h3>
+                        <div class="mb-3">
+                            ${summariesHtml}
+                        </div>
+                        
+                        <button onclick="toggleDetails('${log.id}')" class="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-brand transition w-full py-1">
+                            <i data-lucide="chevron-right" id="icon-${log.id}" class="w-3 h-3 transition-transform"></i>
+                            詳細な議事録・内容を開く
+                        </button>
+                        <div id="details-${log.id}" class="hidden mt-2 pt-3 border-t border-gray-100">
+                            <p class="text-[12px] text-gray-600 leading-relaxed whitespace-pre-wrap">${log.details}</p>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            const badge = document.getElementById('task-badge');
+            
+            let allTasks = [];
+            appState.logs.forEach(log => {
+                log.tasks.forEach(t => {
+                    allTasks.push({ ...t, sourceTitle: log.title, sourceTime: log.time });
+                });
+            });
+
+            const incompleteCount = allTasks.filter(t => !t.completed).length;
+            if (incompleteCount > 0) {
+                badge.innerText = incompleteCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            if (allTasks.length === 0) {
+                container.innerHTML = '<div class="p-6 text-center text-sm text-gray-400 font-bold">未完了のタスクはありません</div>';
+                return;
+            }
+
+            let html = '';
+            allTasks.forEach(task => {
+                const checkedAttr = task.completed ? 'checked' : '';
+                const textStyle = task.completed ? 'line-through text-gray-400' : 'text-gray-800 font-bold';
+                
+                html += `
+                <label class="flex items-start gap-3 p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
+                    <input type="checkbox" ${checkedAttr} onchange="toggleTask('${task.id}')" class="mt-0.5 w-4.5 h-4.5 text-brand rounded border-gray-300">
+                    <div>
+                        <span class="text-[13px] block mb-1 ${textStyle}">${task.text}</span>
+                        <span class="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                            <i data-lucide="corner-down-right" class="w-3 h-3"></i> ${task.sourceTitle} (${formatTime(task.sourceTime)})
+                        </span>
+                    </div>
+                </label>`;
+            });
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
