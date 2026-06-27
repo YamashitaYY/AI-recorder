@@ -54,7 +54,6 @@
             <div id="view-timeline" class="space-y-6 relative">
                 <div class="absolute left-[11px] top-2 bottom-0 w-0.5 bg-gray-200" id="timeline-line" style="display: none;"></div>
                 <div id="timeline-container">
-                    <!-- ここに履歴が追加されます -->
                     <div class="flex flex-col items-center justify-center h-48 text-gray-400">
                         <i data-lucide="inbox" class="w-10 h-10 mb-2 opacity-50"></i>
                         <p class="text-sm font-bold">記録がありません</p>
@@ -69,7 +68,6 @@
                     <h2 class="text-[12px] font-bold text-gray-400 tracking-wider">ACTION ITEMS</h2>
                 </div>
                 <div class="bg-surface rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="tasks-container">
-                    <!-- ここにタスクが追加されます -->
                     <div class="p-6 text-center text-sm text-gray-400 font-bold">
                         未完了のタスクはありません
                     </div>
@@ -86,13 +84,13 @@
         <div id="memo-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex flex-col justify-end backdrop-blur-sm transition-opacity">
             <div id="memo-modal-content" class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-gray-900">記録を追加 (音声/テキスト)</h2>
+                    <h2 class="text-lg font-bold text-gray-900">記録を追加</h2>
                     <button onclick="closeMemoModal()" class="p-1 rounded-full hover:bg-gray-100">
                         <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
                     </button>
                 </div>
                 
-                <p class="text-[12px] text-gray-500 mb-4">音声ファイル（Watchのボイスメモ等）か、テキストを入力してAIに要約させます。</p>
+                <p class="text-[12px] text-gray-500 mb-4">音声ファイル（Watchの録音等）か、テキストを入力してAIに要約させます。</p>
                 
                 <!-- 音声ファイルアップロードエリア -->
                 <div class="mb-4">
@@ -109,11 +107,12 @@
                     <div class="flex-1 h-px bg-gray-200"></div>
                 </div>
 
-                <textarea id="memo-input" class="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none mb-6" placeholder="※音声ファイルを選んだ場合は、ここは空欄でもOKです。"></textarea>
+                <textarea id="memo-input" class="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none mb-6" placeholder="※音声を選んだ場合は、ここは空欄でもOKです。"></textarea>
                 
-                <div id="loading-indicator" class="hidden flex-col items-center justify-center gap-2 mb-4 py-4">
+                <!-- ローディング表示（進捗テキスト付き） -->
+                <div id="loading-indicator" class="hidden flex-col items-center justify-center gap-3 mb-4 py-4">
                     <div class="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                    <span class="text-[11px] font-bold text-brand animate-pulse text-center">AIが音声を解析しています...<br>※ファイルの容量によっては数分かかります</span>
+                    <span id="loading-text" class="text-[11px] font-bold text-brand animate-pulse text-center">準備中...</span>
                 </div>
 
                 <div id="memo-buttons" class="flex gap-3">
@@ -138,7 +137,7 @@
                 <div class="flex-1 overflow-y-auto no-scrollbar">
                     <div class="mb-6">
                         <label class="block text-xs font-bold text-gray-500 mb-2">Gemini API Key (BYOK)</label>
-                        <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="AIzaSy...">
+                        <input type="password" id="api-key-input" class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="AQ.xxx...">
                         <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
                             Google AI Studioで取得したAPIキーを入力してください。<br>
                             ※キーはブラウザにのみ保存され、外部サーバーには送信されません。
@@ -170,23 +169,15 @@
     <script>
         lucide.createIcons();
 
-        // --- アプリのデータ管理 ---
-        let appState = {
-            apiKey: '',
-            logs: [] 
-            // logの構造: { id, time: ISOString, title, summaries: [], details, tasks: [{id, text, completed, sourceId}] }
-        };
+        let appState = { apiKey: '', logs: [] };
+        
+        // ファイルそのものを保持
+        let selectedFileObj = null; 
 
-        let selectedAudioBase64 = null;
-        let selectedAudioMimeType = null;
-
-        // --- 初期化処理 ---
         function initApp() {
-            // 今日の日付をセット
             const today = new Date();
             document.getElementById('header-date').innerText = `今日 (${today.getMonth()+1}月${today.getDate()}日)`;
 
-            // ローカルストレージからデータ復元
             const savedKey = localStorage.getItem('bizlog_apikey');
             if (savedKey) appState.apiKey = savedKey;
 
@@ -196,7 +187,6 @@
                 renderData();
             }
             
-            // 初回でAPIキーがない場合は設定画面を促す
             if (!savedKey) {
                 setTimeout(() => openSettingsModal(), 500);
             }
@@ -208,7 +198,6 @@
             renderData();
         }
 
-        // --- UI 操作 ---
         function switchTab(tab) {
             document.getElementById('view-timeline').classList.add('hidden');
             document.getElementById('view-tasks').classList.add('hidden');
@@ -226,7 +215,6 @@
             setTimeout(() => toast.classList.add('opacity-0'), 3000);
         }
 
-        // --- モーダル操作 ---
         function openSettingsModal() {
             document.getElementById('api-key-input').value = appState.apiKey;
             const modal = document.getElementById('settings-modal');
@@ -243,6 +231,7 @@
         }
 
         function saveSettings() {
+            // 邪魔だったAIzaチェックは完全に削除しました。どんなキーでも保存します。
             appState.apiKey = document.getElementById('api-key-input').value.trim();
             saveData();
             closeSettingsModal();
@@ -283,31 +272,21 @@
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        // --- ファイル選択処理 ---
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
-                document.getElementById('file-name-display').innerHTML = `<span class="text-brand font-bold">${file.name}</span><br><span class="text-[10px] font-normal text-gray-400">${(file.size / 1024 / 1024).toFixed(2)} MB</span>`;
+                selectedFileObj = input.files[0];
+                document.getElementById('file-name-display').innerHTML = `<span class="text-brand font-bold">${selectedFileObj.name}</span><br><span class="text-[10px] font-normal text-gray-400">${(selectedFileObj.size / 1024 / 1024).toFixed(2)} MB</span>`;
                 
                 const icon = document.getElementById('upload-icon');
                 icon.setAttribute('data-lucide', 'check-circle-2');
                 icon.classList.remove('text-gray-400');
                 icon.classList.add('text-brand');
                 lucide.createIcons();
-                
-                selectedAudioMimeType = file.type || 'audio/mp4'; 
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    selectedAudioBase64 = e.target.result.split(',')[1];
-                };
-                reader.readAsDataURL(file);
             }
         }
 
         function resetFileInput() {
-            selectedAudioBase64 = null;
-            selectedAudioMimeType = null;
+            selectedFileObj = null;
             const fileInput = document.getElementById('audio-file');
             if(fileInput) fileInput.value = '';
             document.getElementById('file-name-display').innerHTML = '音声ファイルを選択<br>(またはタップして録音)';
@@ -318,23 +297,63 @@
             lucide.createIcons();
         }
 
-        // --- Gemini API 解析処理 ---
+        // --- 完全に新しくなったAPI通信処理 (最新APIキー・ヘッダー渡し対応) ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             
-            if (!text && !selectedAudioBase64) {
+            if (!text && !selectedFileObj) {
                 showMessage("音声ファイルを選ぶか、テキストを入力してください。");
                 return;
             }
-            
+
             document.getElementById('memo-buttons').classList.add('hidden');
             document.getElementById('loading-indicator').classList.remove('hidden');
             document.getElementById('loading-indicator').classList.add('flex');
+            
+            const loadingText = document.getElementById('loading-text');
 
             try {
-                // エラーの原因だったモデル名を 'gemini-1.5-flash-latest' に修正！
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${appState.apiKey}`;
-                
+                let fileUri = null;
+                let mimeType = null;
+
+                // 1. もし音声ファイルがあれば、まず専用のFile APIでアップロードする
+                if (selectedFileObj) {
+                    loadingText.innerHTML = "音声をサーバーに安全に送信中...<br>※ファイルの容量によって数十秒かかります";
+                    
+                    mimeType = selectedFileObj.type;
+                    if (!mimeType) {
+                        if (selectedFileObj.name.toLowerCase().endsWith('.m4a')) mimeType = 'audio/mp4';
+                        else if (selectedFileObj.name.toLowerCase().endsWith('.mp3')) mimeType = 'audio/mp3';
+                        else mimeType = 'audio/mp4'; 
+                    }
+
+                    // URLにキーを付ける古いやり方をやめ、ヘッダーに x-goog-api-key として渡します
+                    const uploadResponse = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files`, {
+                        method: 'POST',
+                        headers: {
+                            'x-goog-api-key': appState.apiKey,
+                            'X-Goog-Upload-Protocol': 'raw',
+                            'X-Goog-Upload-Command': 'start, upload, finalize',
+                            'X-Goog-Upload-Header-Content-Length': selectedFileObj.size.toString(),
+                            'X-Goog-Upload-Header-Content-Type': mimeType,
+                            'Content-Type': mimeType
+                        },
+                        body: selectedFileObj
+                    });
+
+                    const uploadResult = await uploadResponse.json();
+                    if (!uploadResponse.ok) {
+                        throw new Error(`音声の送信エラー: ${uploadResult.error?.message || '不明なエラー'}`);
+                    }
+                    
+                    fileUri = uploadResult.file.uri;
+                    loadingText.innerHTML = "送信完了！<br>AIが音声を聞き取って議事録を作成中...";
+                } else {
+                    loadingText.innerHTML = "AIがテキストを解析しています...";
+                }
+
+                // 2. アップロードした音声（またはテキスト）を元に、Geminiに要約させる
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
                 const prompt = `
 以下の情報（音声またはテキスト）を解析し、必ず指定されたJSONフォーマットのみを出力してください。
 余計な解説や、Markdownのバッククォート（\`\`\`json など）は絶対に含めず、生のJSONデータのみを返してください。
@@ -342,47 +361,43 @@
 【出力JSONフォーマット】
 {
   "title": "内容を表す短いタイトル",
-  "summaryPoints": [
-    "重要なポイントの要約1",
-    "重要なポイントの要約2"
-  ],
+  "summaryPoints": ["重要なポイントの要約1", "重要なポイントの要約2"],
   "detailedMinutes": "詳細な内容、決定事項などのまとめ文章",
-  "tasks": [
-    "具体的なタスク1",
-    "具体的なタスク2"
-  ]
+  "tasks": ["具体的なタスク1", "具体的なタスク2"]
 }
-
 【補足テキスト情報】: ${text || 'なし'}
 `;
                 let parts = [{ text: prompt }];
-                if (selectedAudioBase64) {
+                
+                // アップロード成功した音声ファイルへのリンクをセット
+                if (fileUri) {
                     parts.push({
-                        inlineData: { mimeType: selectedAudioMimeType, data: selectedAudioBase64 }
+                        fileData: { mimeType: mimeType, fileUri: fileUri }
                     });
                 }
 
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': appState.apiKey
+                    },
                     body: JSON.stringify({
                         contents: [{ parts: parts }],
                         generationConfig: { 
                             temperature: 0.2,
-                            // 強制的にJSONとして出力させる設定
-                            responseMimeType: "application/json"
+                            // ここもエラー回避のためJSON強制モードを使わず、JS側でパースします
                         }
                     })
                 });
 
                 const resData = await response.json();
                 
-                if (resData.error) {
-                    throw new Error(resData.error.message);
+                if (!response.ok) {
+                    throw new Error(`AI解析エラー: ${resData.error?.message || '不明なエラー'}`);
                 }
 
                 const rawJsonString = resData.candidates[0].content.parts[0].text;
-                // 万が一Markdownが付いていた場合に取り除く安全処理
                 const cleanJsonString = rawJsonString.replace(/```json\n?|```/g, '').trim();
                 const resultObj = JSON.parse(cleanJsonString);
 
@@ -404,14 +419,14 @@
                     tasks: tasks
                 };
 
-                appState.logs.unshift(newLog); // 最新を一番上に追加
+                appState.logs.unshift(newLog);
                 saveData();
                 closeMemoModal();
                 showMessage("AI解析が完了しました！");
 
             } catch (error) {
                 console.error(error);
-                alert("エラーが発生しました。\n・APIキーが正しいか確認してください\n・音声ファイルが大きすぎる場合はエラーになります。\n\n詳細: " + error.message);
+                alert(`処理が中断されました。\n\n【原因】\n${error.message}`);
                 document.getElementById('memo-buttons').classList.remove('hidden');
                 document.getElementById('loading-indicator').classList.add('hidden');
                 document.getElementById('loading-indicator').classList.remove('flex');
@@ -430,7 +445,6 @@
         }
 
         function toggleTask(taskId) {
-            // タスクの完了状態を切り替え
             appState.logs.forEach(log => {
                 log.tasks.forEach(t => {
                     if (t.id === taskId) {
@@ -521,7 +535,6 @@
             const container = document.getElementById('tasks-container');
             const badge = document.getElementById('task-badge');
             
-            // 全てのログからタスクを抽出して一次元配列にする
             let allTasks = [];
             appState.logs.forEach(log => {
                 log.tasks.forEach(t => {
@@ -529,7 +542,6 @@
                 });
             });
 
-            // 未完了のタスク数をバッジに表示
             const incompleteCount = allTasks.filter(t => !t.completed).length;
             if (incompleteCount > 0) {
                 badge.innerText = incompleteCount;
