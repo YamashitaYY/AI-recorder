@@ -11,9 +11,9 @@
             theme: {
                 extend: {
                     colors: { 
-                        brand: '#1C1C1E',     /* PLAUDライクなダークグレー */
-                        accent: '#FF3B30',    /* アクセントカラー */
-                        bg: '#F2F2F7',        /* iOSライクな背景 */
+                        brand: '#1C1C1E',
+                        accent: '#FF3B30',
+                        bg: '#F2F2F7',
                         surface: '#FFFFFF' 
                     }
                 }
@@ -44,8 +44,7 @@
                 </button>
             </div>
 
-            <div class="flex overflow-x-auto no-scrollbar gap-2.5 pb-2" id="calendar-container">
-                </div>
+            <div class="flex overflow-x-auto no-scrollbar gap-2.5 pb-2" id="calendar-container"></div>
         </header>
 
         <div class="flex px-8 pt-3 bg-bg shrink-0 z-10">
@@ -56,15 +55,11 @@
         </div>
 
         <main class="flex-1 overflow-y-auto no-scrollbar flex flex-col relative p-5 pb-32">
-            
             <div id="view-timeline" class="space-y-5">
-                <div id="timeline-container" class="space-y-5">
-                    </div>
+                <div id="timeline-container" class="space-y-5"></div>
             </div>
-
             <div id="view-tasks" class="hidden space-y-3">
-                <div id="tasks-container" class="bg-surface rounded-3xl shadow-sm border border-gray-100/50 overflow-hidden">
-                    </div>
+                <div id="tasks-container" class="bg-surface rounded-3xl shadow-sm border border-gray-100/50 overflow-hidden"></div>
             </div>
         </main>
 
@@ -354,9 +349,10 @@
                 }
 
                 let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${appState.apiKey}`;
+                
+                // 【重要修正】JSON強制モードをONにし、出力制限を最大化
                 const prompt = `
-以下の情報（音声またはテキスト）を解析し、構造化して指定されたJSONフォーマットのみを出力してください。
-Markdownのバッククォート（\`\`\`json など）は絶対に含めず、生のJSONのみを返してください。
+以下の情報（音声またはテキスト）を解析し、指定されたJSONフォーマットのみを出力してください。
 
 【出力JSONフォーマット】
 {
@@ -374,7 +370,14 @@ Markdownのバッククォート（\`\`\`json など）は絶対に含めず、�
                 let response = await fetch(generateUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: parts }] })
+                    body: JSON.stringify({ 
+                        contents: [{ parts: parts }],
+                        generationConfig: {
+                            temperature: 0.2,
+                            responseMimeType: "application/json", // 完全なJSONを強制
+                            maxOutputTokens: 8192                 // 長い文字起こしでも途切れないようにする
+                        }
+                    })
                 });
 
                 let resData = await response.json();
@@ -382,7 +385,13 @@ Markdownのバッククォート（\`\`\`json など）は絶対に含めず、�
 
                 const rawText = resData.candidates[0].content.parts[0].text;
                 const cleanJsonString = rawText.replace(/```json\n?|```/g, '').trim();
-                const resultObj = JSON.parse(cleanJsonString);
+                
+                let resultObj;
+                try {
+                    resultObj = JSON.parse(cleanJsonString);
+                } catch (parseError) {
+                    throw new Error("AIの出力が長すぎて途切れてしまったか、処理できない特殊文字が含まれていました。音声が長すぎる場合は分割してお試しください。");
+                }
 
                 const newLogId = Date.now().toString();
                 const tasks = (resultObj.tasks || []).map((t, i) => ({
