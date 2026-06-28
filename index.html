@@ -283,7 +283,6 @@
                 document.getElementById('file-name-display').innerHTML = `<span class="text-brand font-black">${selectedFileObj.name}</span><br><span class="text-[11px] font-medium text-gray-400">${(selectedFileObj.size / 1024 / 1024).toFixed(2)} MB</span>`;
                 const icon = document.getElementById('upload-icon');
                 icon.setAttribute('data-lucide', 'check');
-                icon.classList.remove('text-brand');
                 icon.classList.add('text-brand');
                 lucide.createIcons();
             }
@@ -295,7 +294,6 @@
             document.getElementById('file-name-display').innerHTML = '音声ファイルを選択';
             const icon = document.getElementById('upload-icon');
             icon.setAttribute('data-lucide', 'upload-cloud');
-            icon.classList.remove('text-brand');
             icon.classList.add('text-brand');
             lucide.createIcons();
         }
@@ -305,7 +303,7 @@
             renderData();
         }
 
-        // --- AI 解析処理 ---
+        // --- 究極の「落ちない」AI 解析処理 ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             if (!text && !selectedFileObj) {
@@ -322,6 +320,7 @@
                 let fileUri = null;
                 let mimeType = null;
 
+                // 音声ファイルのアップロード
                 if (selectedFileObj) {
                     loadingText.innerHTML = "音声をサーバーに安全に送信中...<br><span class='text-[10px] font-normal text-gray-400'>ファイルサイズによっては数十秒かかります</span>";
                     mimeType = selectedFileObj.type || (selectedFileObj.name.toLowerCase().endsWith('.m4a') ? 'audio/mp4' : 'audio/mp3');
@@ -348,21 +347,29 @@
                     loadingText.innerHTML = "テキストを解析中...";
                 }
 
+                // 【重要】JSONをやめ、マークダウン（テキスト）形式で出力させる
                 let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${appState.apiKey}`;
                 
-                // 【重要修正】JSON強制モードをONにし、出力制限を最大化
                 const prompt = `
-以下の情報（音声またはテキスト）を解析し、指定されたJSONフォーマットのみを出力してください。
+以下の情報（音声またはテキスト）を解析し、必ず以下の見出しタグ（#）を用いたフォーマットで出力してください。
+JSON形式や不要な装飾は使わないでください。
 
-【出力JSONフォーマット】
-{
-  "title": "内容を表す短いタイトル",
-  "summaryPoints": ["重要なポイントの要約1", "重要なポイントの要約2"],
-  "detailedMinutes": "詳細な内容、決定事項などのまとめ文章",
-  "tasks": ["具体的なタスク1", "具体的なタスク2"],
-  "fullTranscript": "音声の完全な文字起こしテキスト。話し言葉を一言一句正確にテキスト化してください。（テキスト入力の場合は入力された内容をそのまま）"
-}
-【補足情報】: ${text || 'なし'}
+#TITLE
+(内容を表す短いタイトル)
+
+#SUMMARY
+- (重要なポイントの要約1)
+- (重要なポイントの要約2)
+
+#DETAILS
+(詳細な内容、決定事項などのまとめ文章。改行を含めて読みやすく)
+
+#TASKS
+- (具体的なタスク1)
+- (具体的なタスク2)
+
+#TRANSCRIPT
+(音声の完全な文字起こしテキスト。話し言葉を一言一句正確にテキスト化。テキスト入力の場合はそのまま。)
 `;
                 let parts = [{ text: prompt }];
                 if (fileUri) parts.push({ fileData: { mimeType: mimeType, fileUri: fileUri } });
@@ -374,8 +381,7 @@
                         contents: [{ parts: parts }],
                         generationConfig: {
                             temperature: 0.2,
-                            responseMimeType: "application/json", // 完全なJSONを強制
-                            maxOutputTokens: 8192                 // 長い文字起こしでも途切れないようにする
+                            maxOutputTokens: 8192 // 出力限界まで許可
                         }
                     })
                 });
@@ -384,17 +390,20 @@
                 if (!response.ok) throw new Error(`AIエラー: ${resData.error?.message}`);
 
                 const rawText = resData.candidates[0].content.parts[0].text;
-                const cleanJsonString = rawText.replace(/```json\n?|```/g, '').trim();
-                
-                let resultObj;
-                try {
-                    resultObj = JSON.parse(cleanJsonString);
-                } catch (parseError) {
-                    throw new Error("AIの出力が長すぎて途切れてしまったか、処理できない特殊文字が含まれていました。音声が長すぎる場合は分割してお試しください。");
-                }
+
+                // 【重要】絶対にクラッシュしないテキスト分割抽出処理
+                const titleStr = (rawText.match(/#TITLE\s*\n([\s\S]*?)(?=\n#SUMMARY|\n#DETAILS|\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '無題の記録';
+                const summaryStr = (rawText.match(/#SUMMARY\s*\n([\s\S]*?)(?=\n#DETAILS|\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '';
+                const detailsStr = (rawText.match(/#DETAILS\s*\n([\s\S]*?)(?=\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '';
+                const tasksStr = (rawText.match(/#TASKS\s*\n([\s\S]*?)(?=\n#TRANSCRIPT|$)/i) || [])[1] || '';
+                const transcriptStr = (rawText.match(/#TRANSCRIPT\s*\n([\s\S]*?)$/i) || [])[1] || '文字起こしデータなし';
+
+                // 箇条書き（-, *, ・）を配列に変換
+                const summaries = summaryStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
+                const tasksText = tasksStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
 
                 const newLogId = Date.now().toString();
-                const tasks = (resultObj.tasks || []).map((t, i) => ({
+                const tasks = tasksText.map((t, i) => ({
                     id: `${newLogId}_task_${i}`,
                     text: t,
                     completed: false,
@@ -404,10 +413,10 @@
                 const newLog = {
                     id: newLogId,
                     time: new Date().toISOString(),
-                    title: resultObj.title || '無題の記録',
-                    summaries: resultObj.summaryPoints || [],
-                    details: resultObj.detailedMinutes || '',
-                    fullTranscript: resultObj.fullTranscript || '（文字起こしデータなし）',
+                    title: titleStr.trim(),
+                    summaries: summaries,
+                    details: detailsStr.trim(),
+                    fullTranscript: transcriptStr.trim(),
                     tasks: tasks
                 };
 
@@ -416,6 +425,7 @@
                 saveData();
                 closeMemoModal();
 
+                // カレンダー・ToDo自動登録
                 if (appState.gasUrl && appState.gasSecret) {
                     showMessage("解析完了！\n続けてカレンダーとToDoに登録中...");
                     const payload = {
@@ -464,7 +474,6 @@
             return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
         }
 
-        // カレンダー描画
         function renderCalendar() {
             const container = document.getElementById('calendar-container');
             const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -498,7 +507,6 @@
             setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 10);
         }
 
-        // タイムライン描画 (PLAUD風カード)
         function renderTimeline() {
             const container = document.getElementById('timeline-container');
             const filteredLogs = appState.logs.filter(log => getLogDateStr(log.time) === appState.selectedDate);
@@ -551,7 +559,7 @@
                     </div>
 
                     <div id="details-${log.id}" class="hidden mt-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                        <p class="text-[13px] text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">${log.details}</p>
+                        <p class="text-[13px] text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">${log.details || '詳細なし'}</p>
                     </div>
                     <div id="transcript-${log.id}" class="hidden mt-3 p-5 bg-brand rounded-2xl">
                         <p class="text-[13px] text-gray-300 font-medium leading-relaxed whitespace-pre-wrap">${log.fullTranscript}</p>
@@ -561,7 +569,6 @@
             container.innerHTML = html;
         }
 
-        // タスク描画 (個別削除機能つき)
         function renderTasks() {
             const container = document.getElementById('tasks-container');
             const badge = document.getElementById('task-badge');
