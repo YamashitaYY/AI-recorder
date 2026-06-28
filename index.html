@@ -43,7 +43,6 @@
                     <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i>
                 </button>
             </div>
-
             <div class="flex overflow-x-auto no-scrollbar gap-2.5 pb-2" id="calendar-container"></div>
         </header>
 
@@ -104,12 +103,51 @@
                         <div class="w-12 h-12 border-4 border-gray-100 rounded-full"></div>
                         <div class="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin absolute"></div>
                     </div>
-                    <span id="loading-text" class="text-[12px] font-bold text-brand animate-pulse text-center">AIが音声を解析しています...</span>
+                    <span id="loading-text" class="text-[13px] font-bold text-brand text-center">準備中...</span>
+                    <p id="loading-subtext" class="text-[11px] text-gray-500 text-center"></p>
                 </div>
 
                 <div id="memo-buttons" class="flex">
                     <button onclick="analyzeData()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[15px] shadow-lg shadow-brand/30 active:scale-[0.98] transition-transform flex justify-center items-center gap-2">
                         <i data-lucide="sparkles" class="w-5 h-5"></i> AIで要約＆タスク抽出
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sync-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md transition-opacity">
+            <div id="sync-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-black text-brand tracking-tight flex items-center gap-2">
+                        <i data-lucide="calendar-plus" class="w-6 h-6 text-accent"></i> 連携の確認
+                    </h2>
+                    <button onclick="closeSyncModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <p class="text-[12px] text-gray-500 font-medium mb-4">以下の内容でカレンダーとToDoリストに登録します。必要に応じて修正してください。</p>
+                
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-1">予定のタイトル (カレンダー)</label>
+                        <input type="text" id="sync-title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[13px] font-bold focus:ring-2 focus:ring-brand focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-1">登録するタスク (ToDo)</label>
+                        <textarea id="sync-tasks" class="w-full h-24 bg-gray-50 border border-gray-200 rounded-xl p-3 text-[13px] focus:ring-2 focus:ring-brand focus:outline-none resize-none" placeholder="タスクがない場合は空欄"></textarea>
+                    </div>
+                </div>
+
+                <div id="sync-loading" class="hidden flex-col items-center justify-center gap-3 py-2 mb-4">
+                    <div class="w-6 h-6 border-2 border-gray-200 border-t-accent rounded-full animate-spin"></div>
+                    <span class="text-[12px] font-bold text-gray-600">登録処理中...</span>
+                </div>
+
+                <div id="sync-buttons" class="flex gap-3">
+                    <button onclick="closeSyncModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl text-[14px]">キャンセル</button>
+                    <button onclick="executeSync()" class="flex-1 bg-accent text-white font-bold py-3.5 rounded-xl text-[14px] shadow-md hover:bg-red-600 transition">
+                        Googleへ登録
                     </button>
                 </div>
             </div>
@@ -126,6 +164,12 @@
                 
                 <div class="flex-1 overflow-y-auto no-scrollbar pb-6 space-y-6">
                     <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">使用するAIモデル</label>
+                        <select id="api-model-select" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand mb-4">
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (標準・高速)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (高性能・文字起こし強力)</option>
+                        </select>
+
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">GEMINI API KEY (必須)</label>
                         <input type="password" id="api-key-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="AQ.xxx または AIza...">
                     </div>
@@ -138,9 +182,6 @@
                         
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">連携: SECRET TOKEN (合言葉)</label>
                         <input type="password" id="gas-secret-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="設定した合言葉">
-                        <p class="text-[10px] text-gray-400 font-medium mt-2 leading-relaxed">
-                            設定すると、AIの解析後に自動でGoogleカレンダーとToDoに予定が作成されます。
-                        </p>
                     </div>
 
                     <div class="h-px bg-gray-100"></div>
@@ -171,12 +212,14 @@
 
         let appState = { 
             apiKey: '', 
+            modelName: 'gemini-1.5-flash',
             gasUrl: '', 
             gasSecret: '', 
             logs: [],
             selectedDate: '' 
         };
         let selectedFileObj = null; 
+        let currentSyncLogId = null;
 
         function getTodayStr() {
             const d = new Date();
@@ -187,6 +230,8 @@
             appState.selectedDate = getTodayStr();
             const savedKey = localStorage.getItem('bizlog_apikey');
             if (savedKey) appState.apiKey = savedKey;
+            const savedModel = localStorage.getItem('bizlog_model');
+            if (savedModel) appState.modelName = savedModel;
             const savedGasUrl = localStorage.getItem('bizlog_gas_url');
             if (savedGasUrl) appState.gasUrl = savedGasUrl;
             const savedGasSecret = localStorage.getItem('bizlog_gas_secret');
@@ -201,6 +246,7 @@
 
         function saveData() {
             localStorage.setItem('bizlog_apikey', appState.apiKey);
+            localStorage.setItem('bizlog_model', appState.modelName);
             localStorage.setItem('bizlog_gas_url', appState.gasUrl);
             localStorage.setItem('bizlog_gas_secret', appState.gasSecret);
             localStorage.setItem('bizlog_logs', JSON.stringify(appState.logs));
@@ -223,8 +269,10 @@
             setTimeout(() => toast.classList.add('opacity-0'), 3000);
         }
 
+        // --- 設定モーダル関連 ---
         function openSettingsModal() {
             document.getElementById('api-key-input').value = appState.apiKey;
+            document.getElementById('api-model-select').value = appState.modelName || 'gemini-1.5-flash';
             document.getElementById('gas-url-input').value = appState.gasUrl;
             document.getElementById('gas-secret-input').value = appState.gasSecret;
             const modal = document.getElementById('settings-modal');
@@ -240,6 +288,7 @@
         }
         function saveSettings() {
             appState.apiKey = document.getElementById('api-key-input').value.trim();
+            appState.modelName = document.getElementById('api-model-select').value;
             appState.gasUrl = document.getElementById('gas-url-input').value.trim();
             appState.gasSecret = document.getElementById('gas-secret-input').value.trim();
             saveData();
@@ -254,6 +303,8 @@
                 showMessage('データを削除しました');
             }
         }
+
+        // --- 追加モーダル関連 ---
         function openMemoModal() {
             if (!appState.apiKey) {
                 showMessage('設定からAPIキーを登録してください');
@@ -276,7 +327,6 @@
             content.classList.add('translate-y-full');
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
-
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 selectedFileObj = input.files[0];
@@ -298,12 +348,82 @@
             lucide.createIcons();
         }
 
+        // --- 同期（手動登録）モーダル関連 ---
+        function openSyncModal(logId) {
+            if (!appState.gasUrl || !appState.gasSecret) {
+                showMessage('設定画面から連携URLと合言葉を設定してください');
+                return;
+            }
+            const log = appState.logs.find(l => l.id === logId);
+            if (!log) return;
+            
+            currentSyncLogId = logId;
+            document.getElementById('sync-title').value = log.title;
+            const tasksText = log.tasks.map(t => t.text).join('\n');
+            document.getElementById('sync-tasks').value = tasksText;
+            
+            document.getElementById('sync-buttons').classList.remove('hidden');
+            document.getElementById('sync-loading').classList.add('hidden');
+            document.getElementById('sync-loading').classList.remove('flex');
+
+            const modal = document.getElementById('sync-modal');
+            const content = document.getElementById('sync-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeSyncModal() {
+            const modal = document.getElementById('sync-modal');
+            const content = document.getElementById('sync-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function executeSync() {
+            const log = appState.logs.find(l => l.id === currentSyncLogId);
+            if (!log) return;
+
+            const title = document.getElementById('sync-title').value.trim();
+            const tasks = document.getElementById('sync-tasks').value.split('\n').map(t => t.trim()).filter(t => t);
+
+            document.getElementById('sync-buttons').classList.add('hidden');
+            document.getElementById('sync-loading').classList.remove('hidden');
+            document.getElementById('sync-loading').classList.add('flex');
+
+            const payload = {
+                secretToken: appState.gasSecret,
+                title: title,
+                details: log.details,
+                tasks: tasks
+            };
+
+            fetch(appState.gasUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    showMessage("✨ カレンダーとToDoに登録しました！");
+                    closeSyncModal();
+                } else {
+                    alert("連携エラー: " + data.message);
+                    closeSyncModal();
+                }
+            })
+            .catch(err => {
+                alert("通信エラー: URLが正しいか確認してください。");
+                closeSyncModal();
+            });
+        }
+
         function selectDate(dateStr) {
             appState.selectedDate = dateStr;
             renderData();
         }
 
-        // --- 絶対に抽出失敗を許さない AI解析処理 ---
+        // --- AI解析処理 (サボり防止の徹底強化版) ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             if (!text && !selectedFileObj) {
@@ -315,13 +435,16 @@
             document.getElementById('loading-indicator').classList.remove('hidden');
             document.getElementById('loading-indicator').classList.add('flex');
             const loadingText = document.getElementById('loading-text');
+            const loadingSub = document.getElementById('loading-subtext');
 
             try {
                 let fileUri = null;
                 let mimeType = null;
 
+                // 1. アップロードフェーズ
                 if (selectedFileObj) {
-                    loadingText.innerHTML = "音声をサーバーに安全に送信中...<br><span class='text-[10px] font-normal text-gray-400'>ファイルサイズによっては数十秒かかります</span>";
+                    loadingText.innerText = "① 音声ファイルを送信中...";
+                    loadingSub.innerText = "※ファイルサイズにより数十秒かかります";
                     mimeType = selectedFileObj.type || (selectedFileObj.name.toLowerCase().endsWith('.m4a') ? 'audio/mp4' : 'audio/mp3');
 
                     const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${appState.apiKey}`;
@@ -339,21 +462,28 @@
 
                     const uploadResult = await uploadResponse.json();
                     if (!uploadResponse.ok) throw new Error(`送信エラー: ${uploadResult.error?.message}`);
-                    
                     fileUri = uploadResult.file.uri;
-                    loadingText.innerHTML = "送信完了！AIが文字起こしと要約を作成中...<br><span class='text-[10px] font-normal text-gray-400'>※画面を閉じずにお待ちください</span>";
+                    
+                    // 送信完了の合図（ここからはスマホが通信を受信する状態をキープするだけでOK）
+                    loadingText.innerText = "② 送信完了！AIが解析・文字起こし中...";
+                    loadingSub.innerHTML = "<span class='text-accent font-bold'>【重要】データを受け取るため、<br>処理が終わるまで画面を閉じないでください</span>";
                 } else {
-                    loadingText.innerHTML = "テキストを解析中...";
+                    loadingText.innerText = "AIがテキストを解析中...";
+                    loadingSub.innerText = "処理が終わるまでお待ちください";
                 }
 
-                let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${appState.apiKey}`;
+                // 2. AI処理フェーズ
+                let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${appState.modelName}:generateContent?key=${appState.apiKey}`;
                 
-                // 【重要】AIに「サボるな」と強く命令するプロンプト
+                // 【超重要】AIに文字起こしを"真っ先に"やらせる命令に変更（サボり防止）
                 const prompt = `
-【重要・厳守】
-以下の情報（音声またはテキスト）を解析し、必ず以下の見出しタグ（#）を用いたフォーマットで出力してください。
-特に「#TRANSCRIPT」は絶対に省略せず、音声の最初から最後までの完全な全文文字起こしを出力してください。
-JSON形式や不要な装飾（Markdownのコードブロック等）は使わないでください。
+【絶対厳守】
+あなたは優秀な議事録作成アシスタントです。
+以下の音声またはテキストデータから、まずは「全文の文字起こし」を行い、その後に要約やタスク抽出を行ってください。
+Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出しタグ(#)をそのまま使って出力してください。
+
+#TRANSCRIPT
+(ここに、音声の一言一句を絶対に省略せずにすべて書き起こしてください。長文になっても構いません。テキスト入力の場合はそのまま出力してください。)
 
 #TITLE
 (内容を表す短いタイトル)
@@ -368,9 +498,6 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
 #TASKS
 - (具体的なタスク1)
 - (具体的なタスク2)
-
-#TRANSCRIPT
-(ここに音声の完全な文字起こし全文を一言一句漏らさず出力してください。絶対に省略しないでください。)
 `;
                 let parts = [{ text: prompt }];
                 if (fileUri) parts.push({ fileData: { mimeType: mimeType, fileUri: fileUri } });
@@ -381,7 +508,7 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
                     body: JSON.stringify({ 
                         contents: [{ parts: parts }],
                         generationConfig: {
-                            temperature: 0.2,
+                            temperature: 0.1,
                             maxOutputTokens: 8192
                         }
                     })
@@ -392,7 +519,7 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
 
                 const rawText = resData.candidates[0].content.parts[0].text;
 
-                // 【重要】AIがどんな書き方をしても確実に抽出する正規表現
+                // 順番が変わっても確実に抽出する関数
                 const getSection = (text, currentHeader, nextHeaders) => {
                     const nextPattern = nextHeaders.length > 0 ? `|\\n#{1,3}\\s*(?:${nextHeaders.join('|')})` : '';
                     const regex = new RegExp(`#{1,3}\\s*${currentHeader}[:：]?\\s*\\n([\\s\\S]*?)(?=\\n#{1,3}\\s*(?:${nextHeaders.join('|')})|$)`, 'i');
@@ -400,17 +527,12 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
                     return match ? match[1].trim() : '';
                 };
 
+                const transcriptStr = getSection(rawText, 'TRANSCRIPT', ['TITLE', 'SUMMARY', 'DETAILS', 'TASKS']) || getSection(rawText, '文字起こし', ['TITLE', 'SUMMARY', 'DETAILS', 'TASKS']) || rawText; // 最終防衛ライン: 全文ブチ込み
                 const titleStr = getSection(rawText, 'TITLE', ['SUMMARY', 'DETAILS', 'TASKS', 'TRANSCRIPT']) || '無題の記録';
                 const summaryStr = getSection(rawText, 'SUMMARY', ['DETAILS', 'TASKS', 'TRANSCRIPT']);
                 const detailsStr = getSection(rawText, 'DETAILS', ['TASKS', 'TRANSCRIPT']);
                 const tasksStr = getSection(rawText, 'TASKS', ['TRANSCRIPT']);
                 
-                // 【絶対防御】TRANSCRIPTが見つからなかった場合、AIの生出力をそのままブチ込む
-                let transcriptStr = getSection(rawText, 'TRANSCRIPT', []) || getSection(rawText, '文字起こし', []);
-                if (!transcriptStr) {
-                    transcriptStr = "【AIが指定フォーマットを無視しました。以下の生データを確認してください】\n\n" + rawText;
-                }
-
                 const summaries = summaryStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
                 const tasksText = tasksStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
 
@@ -436,29 +558,7 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
                 appState.selectedDate = getTodayStr();
                 saveData();
                 closeMemoModal();
-
-                if (appState.gasUrl && appState.gasSecret) {
-                    showMessage("解析完了！\n続けてカレンダーとToDoに登録中...");
-                    const payload = {
-                        secretToken: appState.gasSecret,
-                        title: newLog.title,
-                        details: newLog.details,
-                        tasks: tasks.map(t => t.text)
-                    };
-                    fetch(appState.gasUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify(payload)
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if(data.status === 'success') showMessage("✨ カレンダーとToDoに登録しました！");
-                        else showMessage("連携エラー: " + data.message);
-                    })
-                    .catch(err => showMessage("連携通信に失敗しました。"));
-                } else {
-                    showMessage("AIの記録が完了しました！");
-                }
+                showMessage("AIの記録と文字起こしが完了しました！");
 
             } catch (error) {
                 console.error(error);
@@ -549,9 +649,14 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
                             <i data-lucide="file-audio" class="w-4 h-4 text-brand"></i>
                             <span class="text-[12px] font-black text-brand tracking-widest">${formatTimeHM(log.time)}</span>
                         </div>
-                        <button onclick="deleteLogConfirm('${log.id}')" class="text-gray-300 hover:text-red-500 transition">
-                            <i data-lucide="more-horizontal" class="w-5 h-5"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openSyncModal('${log.id}')" class="text-[11px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full flex items-center gap-1 hover:bg-accent/20 transition">
+                                <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i> 連携
+                            </button>
+                            <button onclick="deleteLogConfirm('${log.id}')" class="text-gray-300 hover:text-red-500 transition ml-2">
+                                <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <h3 class="text-[18px] font-black text-gray-900 mb-4 leading-snug">${log.title}</h3>
@@ -628,7 +733,6 @@ JSON形式や不要な装飾（Markdownのコードブロック等）は使わ�
             container.innerHTML = html;
         }
 
-        // --- 操作ロジック ---
         function toggleSection(sectionId) {
             document.getElementById(sectionId).classList.toggle('hidden');
         }
