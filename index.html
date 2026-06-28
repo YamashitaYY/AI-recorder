@@ -303,7 +303,7 @@
             renderData();
         }
 
-        // --- 究極の「落ちない」AI 解析処理 ---
+        // --- 超・強力なテキスト抽出ロジックに修正 ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             if (!text && !selectedFileObj) {
@@ -320,7 +320,6 @@
                 let fileUri = null;
                 let mimeType = null;
 
-                // 音声ファイルのアップロード
                 if (selectedFileObj) {
                     loadingText.innerHTML = "音声をサーバーに安全に送信中...<br><span class='text-[10px] font-normal text-gray-400'>ファイルサイズによっては数十秒かかります</span>";
                     mimeType = selectedFileObj.type || (selectedFileObj.name.toLowerCase().endsWith('.m4a') ? 'audio/mp4' : 'audio/mp3');
@@ -347,7 +346,6 @@
                     loadingText.innerHTML = "テキストを解析中...";
                 }
 
-                // 【重要】JSONをやめ、マークダウン（テキスト）形式で出力させる
                 let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${appState.apiKey}`;
                 
                 const prompt = `
@@ -381,7 +379,7 @@ JSON形式や不要な装飾は使わないでください。
                         contents: [{ parts: parts }],
                         generationConfig: {
                             temperature: 0.2,
-                            maxOutputTokens: 8192 // 出力限界まで許可
+                            maxOutputTokens: 8192
                         }
                     })
                 });
@@ -391,14 +389,20 @@ JSON形式や不要な装飾は使わないでください。
 
                 const rawText = resData.candidates[0].content.parts[0].text;
 
-                // 【重要】絶対にクラッシュしないテキスト分割抽出処理
-                const titleStr = (rawText.match(/#TITLE\s*\n([\s\S]*?)(?=\n#SUMMARY|\n#DETAILS|\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '無題の記録';
-                const summaryStr = (rawText.match(/#SUMMARY\s*\n([\s\S]*?)(?=\n#DETAILS|\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '';
-                const detailsStr = (rawText.match(/#DETAILS\s*\n([\s\S]*?)(?=\n#TASKS|\n#TRANSCRIPT|$)/i) || [])[1] || '';
-                const tasksStr = (rawText.match(/#TASKS\s*\n([\s\S]*?)(?=\n#TRANSCRIPT|$)/i) || [])[1] || '';
-                const transcriptStr = (rawText.match(/#TRANSCRIPT\s*\n([\s\S]*?)$/i) || [])[1] || '文字起こしデータなし';
+                // 【修正ポイント】AIがスペースやハッシュの数を間違えても絶対に抽出できる関数
+                const getSection = (text, currentHeader, nextHeaders) => {
+                    const nextPattern = nextHeaders.length > 0 ? `|\\n##?\\s*(?:${nextHeaders.join('|')})` : '';
+                    const regex = new RegExp(`##?\\s*${currentHeader}\\s*\\n([\\s\\S]*?)(?=\\n##?\\s*(?:${nextHeaders.join('|')})|$)`, 'i');
+                    const match = text.match(regex);
+                    return match ? match[1].trim() : '';
+                };
 
-                // 箇条書き（-, *, ・）を配列に変換
+                const titleStr = getSection(rawText, 'TITLE', ['SUMMARY', 'DETAILS', 'TASKS', 'TRANSCRIPT']) || '無題の記録';
+                const summaryStr = getSection(rawText, 'SUMMARY', ['DETAILS', 'TASKS', 'TRANSCRIPT']);
+                const detailsStr = getSection(rawText, 'DETAILS', ['TASKS', 'TRANSCRIPT']);
+                const tasksStr = getSection(rawText, 'TASKS', ['TRANSCRIPT']);
+                const transcriptStr = getSection(rawText, 'TRANSCRIPT', []) || '文字起こしデータなし';
+
                 const summaries = summaryStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
                 const tasksText = tasksStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
 
@@ -413,10 +417,10 @@ JSON形式や不要な装飾は使わないでください。
                 const newLog = {
                     id: newLogId,
                     time: new Date().toISOString(),
-                    title: titleStr.trim(),
+                    title: titleStr,
                     summaries: summaries,
-                    details: detailsStr.trim(),
-                    fullTranscript: transcriptStr.trim(),
+                    details: detailsStr,
+                    fullTranscript: transcriptStr,
                     tasks: tasks
                 };
 
@@ -425,7 +429,6 @@ JSON形式や不要な装飾は使わないでください。
                 saveData();
                 closeMemoModal();
 
-                // カレンダー・ToDo自動登録
                 if (appState.gasUrl && appState.gasSecret) {
                     showMessage("解析完了！\n続けてカレンダーとToDoに登録中...");
                     const payload = {
