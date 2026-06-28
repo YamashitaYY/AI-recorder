@@ -166,8 +166,8 @@
                     <div>
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">使用するAIモデル</label>
                         <select id="api-model-select" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand mb-4">
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (標準・高速)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (高性能・文字起こし強力)</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (標準・高速)</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro (高性能・長時間の音声に強い)</option>
                         </select>
 
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">GEMINI API KEY (必須)</label>
@@ -212,7 +212,7 @@
 
         let appState = { 
             apiKey: '', 
-            modelName: 'gemini-1.5-flash',
+            modelName: 'gemini-2.5-flash', // 初期値を2.5に修正
             gasUrl: '', 
             gasSecret: '', 
             logs: [],
@@ -272,7 +272,7 @@
         // --- 設定モーダル関連 ---
         function openSettingsModal() {
             document.getElementById('api-key-input').value = appState.apiKey;
-            document.getElementById('api-model-select').value = appState.modelName || 'gemini-1.5-flash';
+            document.getElementById('api-model-select').value = appState.modelName || 'gemini-2.5-flash';
             document.getElementById('gas-url-input').value = appState.gasUrl;
             document.getElementById('gas-secret-input').value = appState.gasSecret;
             const modal = document.getElementById('settings-modal');
@@ -423,7 +423,7 @@
             renderData();
         }
 
-        // --- AI解析処理 (サボり防止の徹底強化版) ---
+        // --- AI解析処理 (途切れ対策・自動連携の完全削除) ---
         async function analyzeData() {
             const text = document.getElementById('memo-input').value.trim();
             if (!text && !selectedFileObj) {
@@ -464,7 +464,6 @@
                     if (!uploadResponse.ok) throw new Error(`送信エラー: ${uploadResult.error?.message}`);
                     fileUri = uploadResult.file.uri;
                     
-                    // 送信完了の合図（ここからはスマホが通信を受信する状態をキープするだけでOK）
                     loadingText.innerText = "② 送信完了！AIが解析・文字起こし中...";
                     loadingSub.innerHTML = "<span class='text-accent font-bold'>【重要】データを受け取るため、<br>処理が終わるまで画面を閉じないでください</span>";
                 } else {
@@ -475,15 +474,11 @@
                 // 2. AI処理フェーズ
                 let generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${appState.modelName}:generateContent?key=${appState.apiKey}`;
                 
-                // 【超重要】AIに文字起こしを"真っ先に"やらせる命令に変更（サボり防止）
+                // 【重要】出力途切れを防ぐため、一番重要な要約を先にし、文字起こしを最後に持ってくる。
+                // ただし、AIが文字起こしをサボらないよう命令を強化。
                 const prompt = `
 【絶対厳守】
-あなたは優秀な議事録作成アシスタントです。
-以下の音声またはテキストデータから、まずは「全文の文字起こし」を行い、その後に要約やタスク抽出を行ってください。
-Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出しタグ(#)をそのまま使って出力してください。
-
-#TRANSCRIPT
-(ここに、音声の一言一句を絶対に省略せずにすべて書き起こしてください。長文になっても構いません。テキスト入力の場合はそのまま出力してください。)
+以下の構成と順番（1〜5）で必ず出力してください。Markdownのコードブロックは使わず、見出しタグ（#）をそのまま出力してください。
 
 #TITLE
 (内容を表す短いタイトル)
@@ -498,6 +493,9 @@ Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出
 #TASKS
 - (具体的なタスク1)
 - (具体的なタスク2)
+
+#TRANSCRIPT
+(音声の完全な文字起こし全文。絶対に省略せず、最初から最後まで一言一句出力してください。長文になっても絶対に最後まで書き切ってください。)
 `;
                 let parts = [{ text: prompt }];
                 if (fileUri) parts.push({ fileData: { mimeType: mimeType, fileUri: fileUri } });
@@ -509,7 +507,7 @@ Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出
                         contents: [{ parts: parts }],
                         generationConfig: {
                             temperature: 0.1,
-                            maxOutputTokens: 8192
+                            maxOutputTokens: 8192 // 最新のGemini 2.5ならこれで途切れることはまずありません
                         }
                     })
                 });
@@ -527,12 +525,17 @@ Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出
                     return match ? match[1].trim() : '';
                 };
 
-                const transcriptStr = getSection(rawText, 'TRANSCRIPT', ['TITLE', 'SUMMARY', 'DETAILS', 'TASKS']) || getSection(rawText, '文字起こし', ['TITLE', 'SUMMARY', 'DETAILS', 'TASKS']) || rawText; // 最終防衛ライン: 全文ブチ込み
                 const titleStr = getSection(rawText, 'TITLE', ['SUMMARY', 'DETAILS', 'TASKS', 'TRANSCRIPT']) || '無題の記録';
                 const summaryStr = getSection(rawText, 'SUMMARY', ['DETAILS', 'TASKS', 'TRANSCRIPT']);
                 const detailsStr = getSection(rawText, 'DETAILS', ['TASKS', 'TRANSCRIPT']);
                 const tasksStr = getSection(rawText, 'TASKS', ['TRANSCRIPT']);
                 
+                // 万が一文字起こしが途切れた場合でも、抽出できた分は確実に表示する
+                let transcriptStr = getSection(rawText, 'TRANSCRIPT', []) || getSection(rawText, '文字起こし', []);
+                if (!transcriptStr) {
+                    transcriptStr = "【全文抽出エラー：文字数が長すぎたため途切れました。以下はAIの生データです】\n\n" + rawText;
+                }
+
                 const summaries = summaryStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
                 const tasksText = tasksStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(s => s);
 
@@ -558,6 +561,8 @@ Markdownのコードブロック(JSON等)は絶対に使わず、以下の見出
                 appState.selectedDate = getTodayStr();
                 saveData();
                 closeMemoModal();
+                
+                // 【重要】自動連携ロジックは削除しました。連携はノートのボタンから手動で行います。
                 showMessage("AIの記録と文字起こしが完了しました！");
 
             } catch (error) {
