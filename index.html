@@ -10,11 +10,11 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
+                    colors: { 
                         brand: '#1C1C1E',
                         accent: '#FF3B30',
                         bg: '#F2F2F7',
-                        surface: '#FFFFFF'
+                        surface: '#FFFFFF' 
                     }
                 }
             }
@@ -24,1130 +24,257 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .tab-active { color: #1C1C1E; font-weight: 800; border-bottom: 2px solid #1C1C1E; }
-        .tab-inactive { color: #8E8E93; font-weight: 600; border-bottom: 2px solid transparent; }
-        .fade-in { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        .progress-bar { transition: width 0.4s ease; }
-        .step-active { background: #1C1C1E; color: white; }
-        .step-done { background: #34C759; color: white; }
-        .step-wait { background: #E5E5EA; color: #8E8E93; }
+        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-bg flex justify-center text-gray-900 h-screen overflow-hidden antialiased" onload="initApp()">
-<div class="w-full max-w-md bg-bg h-full flex flex-col relative shadow-2xl overflow-hidden">
-
-    <!-- ヘッダー -->
-    <header class="pt-12 pb-3 px-6 bg-surface z-20 shrink-0 rounded-b-3xl shadow-sm relative">
-        <div class="flex items-center justify-between mb-5">
-            <div>
-                <h1 class="text-[22px] font-black tracking-tight text-brand">BizLog</h1>
-                <p class="text-[11px] font-bold text-gray-400 tracking-wider mt-0.5 uppercase">Whisper × Gemini</p>
+    <div class="w-full max-w-md bg-bg h-full flex flex-col relative shadow-2xl overflow-hidden">
+        
+        <header class="pt-12 pb-3 px-6 bg-surface z-20 shrink-0 rounded-b-3xl shadow-sm relative">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h1 class="text-[22px] font-black tracking-tight text-brand">BizLog</h1>
+                    <p class="text-[11px] font-bold text-gray-400 tracking-wider mt-0.5 uppercase">Gemini 2.5 × GAS Background</p>
+                </div>
+                <button onclick="openSettingsModal()" class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center hover:bg-gray-100 transition shadow-sm border border-gray-100">
+                    <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i>
+                </button>
             </div>
-            <button onclick="openSettingsModal()" class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center hover:bg-gray-100 transition shadow-sm border border-gray-100">
-                <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i>
+            <div class="flex overflow-x-auto no-scrollbar gap-2.5 pb-2" id="calendar-container"></div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar flex flex-col relative p-5 pb-32">
+            <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100 text-center text-gray-500">
+                <i data-lucide="info" class="w-6 h-6 mx-auto mb-2 text-gray-400"></i>
+                <p class="text-[13px] font-bold">音声送信後の重い処理は、すべてGoogleサーバー（GAS）が裏側で自動実行します。</p>
+                <p class="text-[11px] text-gray-400 mt-2">処理が完了すると、自動的にGoogleドライブに文字起こし文書が保存され、カレンダー・ToDoに同期されます。</p>
+            </div>
+        </main>
+
+        <div class="absolute bottom-8 left-0 right-0 flex justify-center z-30 pointer-events-none">
+            <button onclick="openMemoModal()" class="pointer-events-auto flex items-center gap-2.5 bg-brand text-white px-7 py-4 rounded-full shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span class="text-[15px] font-bold tracking-wide">録音ファイルを送信</span>
             </button>
         </div>
-        <div class="flex overflow-x-auto no-scrollbar gap-2.5 pb-2" id="calendar-container"></div>
-    </header>
 
-    <!-- タブ -->
-    <div class="flex px-8 pt-3 bg-bg shrink-0 z-10">
-        <button onclick="switchTab('timeline')" id="tab-timeline" class="flex-1 pb-3 text-[13px] tab-active transition-colors tracking-wide">ノート</button>
-        <button onclick="switchTab('tasks')" id="tab-tasks" class="flex-1 pb-3 text-[13px] tab-inactive transition-colors tracking-wide flex items-center justify-center gap-1.5">
-            タスク <span id="task-badge" class="bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none hidden font-bold shadow-sm">0</span>
-        </button>
-        <button onclick="switchTab('summary')" id="tab-summary" class="flex-1 pb-3 text-[13px] tab-inactive transition-colors tracking-wide">日次まとめ</button>
-    </div>
+        <div id="memo-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md">
+            <div id="memo-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-black text-brand tracking-tight">音声アップロード</h2>
+                    <button onclick="closeMemoModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="relative bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:bg-gray-100 transition cursor-pointer flex flex-col items-center justify-center group" onclick="document.getElementById('audio-file').click()">
+                        <div class="w-14 h-14 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="upload-cloud" id="upload-icon" class="w-6 h-6 text-brand"></i>
+                        </div>
+                        <span class="text-[14px] font-bold text-gray-700 text-center" id="file-name-display">音声ファイルを選択</span>
+                        <input type="file" id="audio-file" accept="audio/*,.m4a,.mp4,.mp3,.wav" class="hidden" onchange="handleFileSelect(this)">
+                    </div>
+                </div>
+                
+                <div id="loading-indicator" class="hidden flex-col items-center justify-center gap-3 py-4 mb-2">
+                    <div class="w-10 h-10 border-4 border-gray-200 border-t-brand rounded-full animate-spin"></div>
+                    <span id="loading-text" class="text-[13px] font-bold text-brand text-center">音声送信中...</span>
+                    <p id="loading-subtext" class="text-[11px] text-gray-400 text-center leading-relaxed"></p>
+                </div>
 
-    <!-- メイン -->
-    <main class="flex-1 overflow-y-auto no-scrollbar flex flex-col relative p-5 pb-32">
-        <div id="view-timeline" class="space-y-5">
-            <div id="timeline-container" class="space-y-5"></div>
+                <div id="memo-buttons" class="flex">
+                    <button onclick="analyzeData()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[15px] shadow-lg flex justify-center items-center gap-2">
+                        <i data-lucide="send" class="w-5 h-5"></i> Googleサーバーへ送信
+                    </button>
+                </div>
+            </div>
         </div>
-        <div id="view-tasks" class="hidden space-y-3">
-            <div id="tasks-container" class="bg-surface rounded-3xl shadow-sm border border-gray-100/50 overflow-hidden"></div>
-        </div>
-        <div id="view-summary" class="hidden space-y-4">
-            <div id="summary-container"></div>
-        </div>
-    </main>
 
-    <!-- 追加ボタン -->
-    <div class="absolute bottom-8 left-0 right-0 flex justify-center z-30 pointer-events-none">
-        <button onclick="openMemoModal()" class="pointer-events-auto flex items-center gap-2.5 bg-brand text-white px-7 py-4 rounded-full shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">
-            <i data-lucide="plus" class="w-5 h-5"></i>
-            <span class="text-[15px] font-bold tracking-wide">記録を追加</span>
-        </button>
-    </div>
-
-    <!-- ===== 記録追加モーダル ===== -->
-    <div id="memo-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md">
-        <div id="memo-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 shadow-2xl">
-            <div class="flex justify-between items-center mb-2">
-                <h2 class="text-xl font-black text-brand tracking-tight">新しいノート</h2>
-                <button onclick="closeMemoModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
-                    <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
-                </button>
-            </div>
-
-            <!-- 処理フロー説明 -->
-            <p class="text-[11px] text-gray-400 font-medium mb-5 leading-relaxed">
-                <span class="font-bold text-brand">① Whisper</span>で文字起こし → <span class="font-bold text-brand">② Gemini</span>で要約・タスク抽出<br>
-                ※25MB以上は自動で分割して処理します
-            </p>
-
-            <!-- ファイルアップロードエリア -->
-            <div class="mb-4">
-                <div id="drop-zone" class="relative bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:bg-gray-100 transition cursor-pointer flex flex-col items-center justify-center group"
-                     onclick="document.getElementById('audio-file').click()"
-                     ondragover="handleDragOver(event)"
-                     ondragleave="handleDragLeave(event)"
-                     ondrop="handleDrop(event)">
-                    <div class="w-14 h-14 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <i data-lucide="upload-cloud" id="upload-icon" class="w-6 h-6 text-brand"></i>
-                    </div>
-                    <span class="text-[14px] font-bold text-gray-700 text-center" id="file-name-display">音声ファイルを選択 / ドロップ</span>
-                    <span class="text-[11px] text-gray-400 mt-1" id="file-size-display">m4a / mp3 / wav / mp4</span>
-                    <input type="file" id="audio-file" accept="audio/*,.m4a,.mp4,.mp3,.wav" class="hidden" onchange="handleFileSelect(this)">
+        <div id="settings-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md">
+            <div id="settings-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 h-[80vh] flex flex-col shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-black text-brand tracking-tight">設定</h2>
+                    <button onclick="closeSettingsModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
                 </div>
-            </div>
-
-            <!-- テキスト入力 -->
-            <div class="flex items-center gap-3 mb-4">
-                <div class="flex-1 h-px bg-gray-200"></div>
-                <span class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">or Text</span>
-                <div class="flex-1 h-px bg-gray-200"></div>
-            </div>
-            <textarea id="memo-input" class="w-full h-20 bg-gray-50 border border-gray-200 rounded-2xl p-4 text-[13px] focus:outline-none focus:ring-2 focus:ring-brand focus:bg-white resize-none mb-5" placeholder="テキストで直接入力もできます（音声不要の場合）"></textarea>
-
-            <!-- プログレス表示エリア -->
-            <div id="progress-area" class="hidden mb-5">
-                <!-- ステップインジケーター -->
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex flex-col items-center gap-1">
-                        <div id="step1-circle" class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-wait transition-all">1</div>
-                        <span class="text-[9px] font-bold text-gray-400 tracking-wider">アップロード</span>
-                    </div>
-                    <div id="step-line-1" class="flex-1 h-0.5 bg-gray-200 mx-1"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div id="step2-circle" class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-wait transition-all">2</div>
-                        <span class="text-[9px] font-bold text-gray-400 tracking-wider">文字起こし</span>
-                    </div>
-                    <div id="step-line-2" class="flex-1 h-0.5 bg-gray-200 mx-1"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div id="step3-circle" class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-wait transition-all">3</div>
-                        <span class="text-[9px] font-bold text-gray-400 tracking-wider">AI解析</span>
-                    </div>
-                    <div id="step-line-3" class="flex-1 h-0.5 bg-gray-200 mx-1"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div id="step4-circle" class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-wait transition-all">4</div>
-                        <span class="text-[9px] font-bold text-gray-400 tracking-wider">完了</span>
-                    </div>
-                </div>
-
-                <!-- プログレスバー -->
-                <div class="w-full bg-gray-100 rounded-full h-2 mb-3">
-                    <div id="progress-bar" class="bg-brand h-2 rounded-full progress-bar" style="width: 0%"></div>
-                </div>
-
-                <!-- ステータステキスト -->
-                <p id="progress-text" class="text-[13px] font-bold text-brand text-center"></p>
-                <p id="progress-sub" class="text-[11px] text-gray-400 text-center mt-1"></p>
-
-                <!-- 分割処理の表示 -->
-                <div id="chunk-info" class="hidden mt-3 bg-gray-50 rounded-xl p-3 text-center">
-                    <p class="text-[11px] font-bold text-gray-500" id="chunk-text"></p>
-                </div>
-            </div>
-
-            <!-- エラー表示 -->
-            <div id="error-area" class="hidden mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
-                <div class="flex items-start gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+                
+                <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pb-6">
                     <div>
-                        <p class="text-[13px] font-bold text-red-700 mb-1">エラーが発生しました</p>
-                        <p id="error-text" class="text-[12px] text-red-600"></p>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2">使用するモデル (Gemini 2.5推奨)</label>
+                        <select id="api-model-select" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:outline-none">
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速・標準)</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro (超高性能・超長文向け)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2">GEMINI API KEY (必須)</label>
+                        <input type="password" id="api-key-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none" placeholder="AQ.xxx...">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2">連携: GOOGLE APP SCRIPT URL (必須)</label>
+                        <input type="text" id="gas-url-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none" placeholder="https://script.google.com/...">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2">連携: SECRET TOKEN (合言葉)</label>
+                        <input type="password" id="gas-secret-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none" placeholder="設定した合言葉">
                     </div>
                 </div>
-                <button onclick="resetModal()" class="mt-3 w-full bg-red-100 text-red-700 font-bold py-2 rounded-xl text-[12px]">もう一度試す</button>
-            </div>
 
-            <div id="memo-buttons" class="flex">
-                <button onclick="analyzeData()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[15px] shadow-lg shadow-brand/30 active:scale-[0.98] transition-transform flex justify-center items-center gap-2">
-                    <i data-lucide="sparkles" class="w-5 h-5"></i> 文字起こし＆AI解析
-                </button>
+                <div class="pt-4 mt-auto">
+                    <button onclick="saveSettings()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[15px] shadow-lg">設定を保存</button>
+                </div>
             </div>
         </div>
+
+        <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-brand text-white text-[13px] font-bold px-6 py-3.5 rounded-full shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-[100]"></div>
     </div>
 
-    <!-- ===== 日次サマリーモーダル（GAS連携確認） ===== -->
-    <div id="sync-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md">
-        <div id="sync-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black text-brand tracking-tight flex items-center gap-2">
-                    <i data-lucide="calendar-plus" class="w-6 h-6 text-accent"></i> Google連携
-                </h2>
-                <button onclick="closeSyncModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
-                    <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
-                </button>
-            </div>
-            <p class="text-[12px] text-gray-500 font-medium mb-4">カレンダーとToDoリストに登録します。内容を確認・修正してください。</p>
-            <div class="space-y-4 mb-6">
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">タイトル（カレンダー）</label>
-                    <input type="text" id="sync-title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[13px] font-bold focus:ring-2 focus:ring-brand focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">タスク（ToDo）</label>
-                    <textarea id="sync-tasks" class="w-full h-24 bg-gray-50 border border-gray-200 rounded-xl p-3 text-[13px] focus:ring-2 focus:ring-brand focus:outline-none resize-none"></textarea>
-                </div>
-            </div>
-            <div id="sync-loading" class="hidden flex-col items-center justify-center gap-3 py-2 mb-4">
-                <div class="w-6 h-6 border-2 border-gray-200 border-t-accent rounded-full animate-spin"></div>
-                <span class="text-[12px] font-bold text-gray-600">登録中...</span>
-            </div>
-            <div id="sync-buttons" class="flex gap-3">
-                <button onclick="closeSyncModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl text-[14px]">キャンセル</button>
-                <button onclick="executeSync()" class="flex-1 bg-accent text-white font-bold py-3.5 rounded-xl text-[14px] shadow-md">Googleへ登録</button>
-            </div>
-        </div>
-    </div>
+    <script>
+        let appState = { apiKey: '', modelName: 'gemini-2.5-flash', gasUrl: '', gasSecret: '' };
+        let selectedFileObj = null;
 
-    <!-- ===== 設定モーダル ===== -->
-    <div id="settings-modal" class="fixed inset-0 bg-brand/40 z-50 hidden flex flex-col justify-end backdrop-blur-md">
-        <div id="settings-modal-content" class="bg-surface w-full max-w-md mx-auto rounded-t-[2.5rem] p-7 transform translate-y-full transition-transform duration-300 h-[90vh] flex flex-col shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black text-brand tracking-tight">設定</h2>
-                <button onclick="closeSettingsModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
-                    <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
-                </button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto no-scrollbar pb-6 space-y-6">
-
-                <!-- Whisper設定 -->
-                <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span class="text-white text-[10px] font-black">W</span>
-                        </div>
-                        <span class="text-[12px] font-black text-blue-800 tracking-wider">WHISPER (OpenAI) - 文字起こし</span>
-                    </div>
-                    <label class="block text-[11px] font-bold text-blue-600 mb-2">OpenAI API KEY</label>
-                    <input type="password" id="openai-key-input" class="w-full bg-white border border-blue-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="sk-...">
-                    <p class="text-[10px] text-blue-500 mt-2">※ 長時間音声でも分割して処理します（25MB/チャンク）</p>
-                </div>
-
-                <!-- Gemini設定 -->
-                <div class="bg-green-50 rounded-2xl p-4 border border-green-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
-                            <span class="text-white text-[10px] font-black">G</span>
-                        </div>
-                        <span class="text-[12px] font-black text-green-800 tracking-wider">GEMINI (Google) - AI解析</span>
-                    </div>
-                    <label class="block text-[11px] font-bold text-green-600 mb-2">Gemini API KEY</label>
-                    <input type="password" id="gemini-key-input" class="w-full bg-white border border-green-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 mb-3" placeholder="AIza...">
-                    <label class="block text-[11px] font-bold text-green-600 mb-2">使用モデル</label>
-                    <select id="gemini-model-select" class="w-full bg-white border border-green-200 rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400">
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro（高精度・推奨）</option>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash（高速）</option>
-                        <option value="gemini-2.0-flash">Gemini 2.0 Flash（最新）</option>
-                    </select>
-                </div>
-
-                <div class="h-px bg-gray-100"></div>
-
-                <!-- GAS連携 -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">GOOGLE APP SCRIPT URL</label>
-                    <input type="text" id="gas-url-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand mb-3" placeholder="https://script.google.com/...">
-                    <label class="block text-[11px] font-bold text-gray-400 mb-2 tracking-wider">SECRET TOKEN</label>
-                    <input type="password" id="gas-secret-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="設定した合言葉">
-                </div>
-
-                <div class="h-px bg-gray-100"></div>
-
-                <!-- データ管理 -->
-                <div>
-                    <p class="text-[11px] font-bold text-gray-400 mb-3 tracking-wider">データ管理</p>
-                    <div id="storage-info" class="bg-gray-50 rounded-xl p-3 mb-3 text-[12px] text-gray-600 font-medium"></div>
-                    <button onclick="exportAllData()" class="w-full bg-blue-50 text-blue-600 font-bold py-3.5 rounded-xl text-[13px] flex items-center justify-center gap-2 border border-blue-100 mb-2">
-                        <i data-lucide="download" class="w-4 h-4"></i> 全データをJSONエクスポート
-                    </button>
-                    <button onclick="clearAllData()" class="w-full bg-red-50 text-red-600 font-bold py-3.5 rounded-xl text-[13px] flex items-center justify-center gap-2 border border-red-100">
-                        <i data-lucide="alert-circle" class="w-4 h-4"></i> すべてのデータを削除
-                    </button>
-                </div>
-            </div>
-
-            <div class="pt-4 mt-auto">
-                <button onclick="saveSettings()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[15px] shadow-lg active:scale-[0.98] transition-transform">
-                    保存して閉じる
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- トースト -->
-    <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-brand text-white text-[13px] font-bold px-6 py-3.5 rounded-full shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-[100] text-center w-max max-w-[90%]">メッセージ</div>
-
-</div>
-
-<script>
-// ==============================
-// STATE & DB
-// ==============================
-let appState = {
-    openaiKey: '',
-    geminiKey: '',
-    geminiModel: 'gemini-1.5-pro',
-    gasUrl: '',
-    gasSecret: '',
-    selectedDate: ''
-};
-let selectedFileObj = null;
-let currentSyncLogId = null;
-let db = null;
-
-// IndexedDB初期化
-function initDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('BizLogDB', 2);
-        req.onupgradeneeded = (e) => {
-            const d = e.target.result;
-            if (!d.objectStoreNames.contains('logs')) {
-                d.createObjectStore('logs', { keyPath: 'id' });
+        function initApp() {
+            appState.apiKey = localStorage.getItem('bizlog_apikey') || '';
+            appState.modelName = localStorage.getItem('bizlog_model') || 'gemini-2.5-flash';
+            appState.gasUrl = localStorage.getItem('bizlog_gas_url') || '';
+            appState.gasSecret = localStorage.getItem('bizlog_gas_secret') || '';
+            
+            // カレンダーヘッダーのみ簡易生成
+            const container = document.getElementById('calendar-container');
+            let html = '';
+            for (let i = 4; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const isToday = i === 0;
+                html += `<div class="flex flex-col items-center justify-center min-w-[56px] h-[72px] rounded-[1.2rem] ${isToday ? 'bg-brand text-white' : 'bg-surface border border-gray-100'} shrink-0 shadow-sm">
+                    <span class="text-[18px] font-black">${d.getDate()}</span>
+                </div>`;
             }
-        };
-        req.onsuccess = (e) => { db = e.target.result; resolve(); };
-        req.onerror = (e) => reject(e);
-    });
-}
-
-function dbGetAll() {
-    return new Promise((resolve) => {
-        const tx = db.transaction('logs', 'readonly');
-        const req = tx.objectStore('logs').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => resolve([]);
-    });
-}
-
-function dbPut(log) {
-    return new Promise((resolve) => {
-        const tx = db.transaction('logs', 'readwrite');
-        tx.objectStore('logs').put(log);
-        tx.oncomplete = () => resolve();
-    });
-}
-
-function dbDelete(id) {
-    return new Promise((resolve) => {
-        const tx = db.transaction('logs', 'readwrite');
-        tx.objectStore('logs').delete(id);
-        tx.oncomplete = () => resolve();
-    });
-}
-
-function dbClear() {
-    return new Promise((resolve) => {
-        const tx = db.transaction('logs', 'readwrite');
-        tx.objectStore('logs').clear();
-        tx.oncomplete = () => resolve();
-    });
-}
-
-// ==============================
-// INIT
-// ==============================
-async function initApp() {
-    await initDB();
-    appState.selectedDate = getTodayStr();
-    appState.openaiKey = localStorage.getItem('bizlog_openai_key') || '';
-    appState.geminiKey = localStorage.getItem('bizlog_gemini_key') || '';
-    appState.geminiModel = localStorage.getItem('bizlog_gemini_model') || 'gemini-1.5-pro';
-    appState.gasUrl = localStorage.getItem('bizlog_gas_url') || '';
-    appState.gasSecret = localStorage.getItem('bizlog_gas_secret') || '';
-    await renderData();
-    if (!appState.openaiKey || !appState.geminiKey) setTimeout(() => openSettingsModal(), 600);
-}
-
-function saveSettings() {
-    appState.openaiKey = document.getElementById('openai-key-input').value.trim();
-    appState.geminiKey = document.getElementById('gemini-key-input').value.trim();
-    appState.geminiModel = document.getElementById('gemini-model-select').value;
-    appState.gasUrl = document.getElementById('gas-url-input').value.trim();
-    appState.gasSecret = document.getElementById('gas-secret-input').value.trim();
-    localStorage.setItem('bizlog_openai_key', appState.openaiKey);
-    localStorage.setItem('bizlog_gemini_key', appState.geminiKey);
-    localStorage.setItem('bizlog_gemini_model', appState.geminiModel);
-    localStorage.setItem('bizlog_gas_url', appState.gasUrl);
-    localStorage.setItem('bizlog_gas_secret', appState.gasSecret);
-    closeSettingsModal();
-    showMessage('設定を保存しました');
-}
-
-// ==============================
-// UTILS
-// ==============================
-function getTodayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function getLogDateStr(iso) {
-    const d = new Date(iso);
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function formatTimeHM(iso) {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-}
-
-function showMessage(msg, type = 'normal') {
-    const toast = document.getElementById('toast');
-    toast.innerText = msg;
-    toast.className = `fixed top-14 left-1/2 transform -translate-x-1/2 text-[13px] font-bold px-6 py-3.5 rounded-full shadow-2xl transition-opacity duration-300 z-[100] text-center w-max max-w-[90%] ${type === 'error' ? 'bg-red-600' : 'bg-brand'} text-white`;
-    toast.classList.remove('opacity-0');
-    setTimeout(() => toast.classList.add('opacity-0'), 3500);
-}
-
-// ==============================
-// タブ切替
-// ==============================
-function switchTab(tab) {
-    ['timeline','tasks','summary'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).className = 'flex-1 pb-3 text-[13px] tab-inactive transition-colors tracking-wide flex items-center justify-center gap-1.5';
-    });
-    document.getElementById(`view-${tab}`).classList.remove('hidden');
-    document.getElementById(`tab-${tab}`).className = 'flex-1 pb-3 text-[13px] tab-active transition-colors tracking-wide flex items-center justify-center gap-1.5';
-    if (tab === 'summary') renderSummaryView();
-}
-
-// ==============================
-// モーダル管理
-// ==============================
-function openModal(id) {
-    const modal = document.getElementById(id);
-    const content = document.getElementById(`${id}-content`);
-    modal.classList.remove('hidden');
-    setTimeout(() => content.classList.remove('translate-y-full'), 10);
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    const content = document.getElementById(`${id}-content`);
-    content.classList.add('translate-y-full');
-    setTimeout(() => modal.classList.add('hidden'), 300);
-}
-
-function openSettingsModal() {
-    document.getElementById('openai-key-input').value = appState.openaiKey;
-    document.getElementById('gemini-key-input').value = appState.geminiKey;
-    document.getElementById('gemini-model-select').value = appState.geminiModel;
-    document.getElementById('gas-url-input').value = appState.gasUrl;
-    document.getElementById('gas-secret-input').value = appState.gasSecret;
-    updateStorageInfo();
-    openModal('settings-modal');
-}
-function closeSettingsModal() { closeModal('settings-modal'); }
-function openMemoModal() {
-    if (!appState.openaiKey || !appState.geminiKey) {
-        showMessage('設定からAPIキーを登録してください', 'error');
-        openSettingsModal();
-        return;
-    }
-    resetModal();
-    openModal('memo-modal');
-}
-function closeMemoModal() { closeModal('memo-modal'); }
-function openSyncModal(logId) {
-    if (!appState.gasUrl || !appState.gasSecret) {
-        showMessage('設定からGAS URLと合言葉を設定してください', 'error');
-        return;
-    }
-    dbGetAll().then(logs => {
-        const log = logs.find(l => l.id === logId);
-        if (!log) return;
-        currentSyncLogId = logId;
-        document.getElementById('sync-title').value = log.title;
-        document.getElementById('sync-tasks').value = log.tasks.map(t => t.text).join('\n');
-        document.getElementById('sync-buttons').classList.remove('hidden');
-        document.getElementById('sync-loading').classList.add('hidden');
-        document.getElementById('sync-loading').classList.remove('flex');
-        openModal('sync-modal');
-    });
-}
-function closeSyncModal() { closeModal('sync-modal'); }
-
-function resetModal() {
-    selectedFileObj = null;
-    const fileInput = document.getElementById('audio-file');
-    if (fileInput) fileInput.value = '';
-    document.getElementById('file-name-display').textContent = '音声ファイルを選択 / ドロップ';
-    document.getElementById('file-size-display').textContent = 'm4a / mp3 / wav / mp4';
-    document.getElementById('upload-icon').setAttribute('data-lucide', 'upload-cloud');
-    document.getElementById('drop-zone').className = 'relative bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:bg-gray-100 transition cursor-pointer flex flex-col items-center justify-center group';
-    document.getElementById('memo-input').value = '';
-    document.getElementById('memo-buttons').classList.remove('hidden');
-    document.getElementById('progress-area').classList.add('hidden');
-    document.getElementById('error-area').classList.add('hidden');
-    document.getElementById('chunk-info').classList.add('hidden');
-    setProgress(0, '', '');
-    lucide.createIcons();
-}
-
-// ==============================
-// ドラッグ&ドロップ
-// ==============================
-function handleDragOver(e) {
-    e.preventDefault();
-    document.getElementById('drop-zone').classList.add('border-brand', 'bg-blue-50');
-}
-function handleDragLeave(e) {
-    document.getElementById('drop-zone').classList.remove('border-brand', 'bg-blue-50');
-}
-function handleDrop(e) {
-    e.preventDefault();
-    document.getElementById('drop-zone').classList.remove('border-brand', 'bg-blue-50');
-    const file = e.dataTransfer.files[0];
-    if (file) applyFile(file);
-}
-function handleFileSelect(input) {
-    if (input.files && input.files[0]) applyFile(input.files[0]);
-}
-function applyFile(file) {
-    selectedFileObj = file;
-    document.getElementById('file-name-display').textContent = file.name;
-    document.getElementById('file-size-display').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-    document.getElementById('upload-icon').setAttribute('data-lucide', 'check-circle');
-    document.getElementById('drop-zone').classList.add('border-brand');
-    lucide.createIcons();
-}
-
-// ==============================
-// プログレス制御
-// ==============================
-function setProgress(pct, text, sub) {
-    document.getElementById('progress-bar').style.width = `${pct}%`;
-    document.getElementById('progress-text').textContent = text;
-    document.getElementById('progress-sub').textContent = sub;
-}
-
-function setStep(step) {
-    // 1-4
-    for (let i = 1; i <= 4; i++) {
-        const el = document.getElementById(`step${i}-circle`);
-        const line = document.getElementById(`step-line-${i}`);
-        if (i < step) {
-            el.className = 'w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-done transition-all';
-            el.innerHTML = '✓';
-            if (line) line.classList.add('bg-brand');
-        } else if (i === step) {
-            el.className = 'w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-active transition-all';
-            el.textContent = i;
-        } else {
-            el.className = 'w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black step-wait transition-all';
-            el.textContent = i;
+            container.innerHTML = html;
+            if(!appState.apiKey || !appState.gasUrl) setTimeout(() => openSettingsModal(), 500);
         }
-    }
-}
 
-function showError(msg) {
-    document.getElementById('progress-area').classList.add('hidden');
-    document.getElementById('error-area').classList.remove('hidden');
-    document.getElementById('error-text').textContent = msg;
-    lucide.createIcons();
-}
-
-// ==============================
-// メイン処理: 分割Whisper + Gemini
-// ==============================
-const WHISPER_CHUNK_MB = 24; // 24MBごとに分割（25MB制限のマージン込み）
-
-async function analyzeData() {
-    const textInput = document.getElementById('memo-input').value.trim();
-    if (!textInput && !selectedFileObj) {
-        showMessage('音声かテキストを入力してください', 'error');
-        return;
-    }
-
-    document.getElementById('memo-buttons').classList.add('hidden');
-    document.getElementById('progress-area').classList.remove('hidden');
-    document.getElementById('error-area').classList.add('hidden');
-
-    try {
-        let transcript = '';
-
-        if (selectedFileObj) {
-            // ===== STEP 1: ファイル確認 =====
-            setStep(1);
-            setProgress(5, 'ファイルを確認中...', `${(selectedFileObj.size/1024/1024).toFixed(1)} MB`);
-
-            const CHUNK_SIZE = WHISPER_CHUNK_MB * 1024 * 1024;
-            const chunks = [];
-
-            if (selectedFileObj.size <= CHUNK_SIZE) {
-                chunks.push(selectedFileObj);
-            } else {
-                // 分割処理
-                const totalChunks = Math.ceil(selectedFileObj.size / CHUNK_SIZE);
-                document.getElementById('chunk-info').classList.remove('hidden');
-                document.getElementById('chunk-text').textContent = `大きなファイルを${totalChunks}分割して処理します`;
-                for (let i = 0; i < totalChunks; i++) {
-                    const start = i * CHUNK_SIZE;
-                    const end = Math.min(start + CHUNK_SIZE, selectedFileObj.size);
-                    const blob = selectedFileObj.slice(start, end);
-                    const ext = selectedFileObj.name.split('.').pop();
-                    chunks.push(new File([blob], `chunk_${i}.${ext}`, { type: selectedFileObj.type || 'audio/mpeg' }));
-                }
+        // 各種モーダル
+        function openSettingsModal() {
+            document.getElementById('api-key-input').value = appState.apiKey;
+            document.getElementById('api-model-select').value = appState.modelName;
+            document.getElementById('gas-url-input').value = appState.gasUrl;
+            document.getElementById('gas-secret-input').value = appState.gasSecret;
+            document.getElementById('settings-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('settings-modal-content').classList.remove('translate-y-full'), 10);
+        }
+        function closeSettingsModal() {
+            document.getElementById('settings-modal-content').classList.add('translate-y-full');
+            setTimeout(() => document.getElementById('settings-modal').classList.add('hidden'), 300);
+        }
+        function saveSettings() {
+            appState.apiKey = document.getElementById('api-key-input').value.trim();
+            appState.modelName = document.getElementById('api-model-select').value;
+            appState.gasUrl = document.getElementById('gas-url-input').value.trim();
+            appState.gasSecret = document.getElementById('gas-secret-input').value.trim();
+            localStorage.setItem('bizlog_apikey', appState.apiKey);
+            localStorage.setItem('bizlog_model', appState.modelName);
+            localStorage.setItem('bizlog_gas_url', appState.gasUrl);
+            localStorage.setItem('bizlog_gas_secret', appState.gasSecret);
+            closeSettingsModal();
+        }
+        function openMemoModal() {
+            resetFileInput();
+            document.getElementById('memo-buttons').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('hidden');
+            document.getElementById('memo-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('memo-modal-content').classList.remove('translate-y-full'), 10);
+        }
+        function closeMemoModal() {
+            document.getElementById('memo-modal-content').classList.add('translate-y-full');
+            setTimeout(() => document.getElementById('memo-modal').classList.add('hidden'), 300);
+        }
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                selectedFileObj = input.files[0];
+                document.getElementById('file-name-display').innerHTML = `<span class="text-brand font-black">${selectedFileObj.name}</span>`;
             }
+        }
+        function resetFileInput() { selectedFileObj = null; document.getElementById('file-name-display').textContent = '音声ファイルを選択'; }
 
-            // ===== STEP 2: Whisper文字起こし =====
-            setStep(2);
-            const transcriptParts = [];
+        // --- アップロード ＆ GASへの丸投げ処理 ---
+        async function analyzeData() {
+            if (!selectedFileObj) { alert("音声ファイルを選択してください。"); return; }
 
-            for (let i = 0; i < chunks.length; i++) {
-                const pct = 10 + ((i / chunks.length) * 50);
-                setProgress(pct, `文字起こし中 (${i+1}/${chunks.length})...`, 'Whisper APIで処理中');
-                if (chunks.length > 1) {
-                    document.getElementById('chunk-text').textContent = `チャンク ${i+1} / ${chunks.length} を処理中...`;
-                }
+            document.getElementById('memo-buttons').classList.add('hidden');
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('flex');
+            
+            const loadingText = document.getElementById('loading-text');
+            const loadingSub = document.getElementById('loading-subtext');
 
-                const formData = new FormData();
-                formData.append('file', chunks[i]);
-                formData.append('model', 'whisper-1');
-                formData.append('language', 'ja');
-                formData.append('response_format', 'text');
+            try {
+                // 裏で音声の再生時間を取得（20分刻みのループ処理に必要）
+                let durationMinutes = 30; // 予備
+                try {
+                    const audio = document.createElement('audio');
+                    audio.src = URL.createObjectURL(selectedFileObj);
+                    await new Promise((resolve) => {
+                        audio.addEventListener('loadedmetadata', () => {
+                            durationMinutes = Math.ceil(audio.duration / 60);
+                            resolve();
+                        });
+                        setTimeout(resolve, 2000); // 念のためのタイムアウト
+                    });
+                } catch(e){}
 
-                const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                loadingText.innerText = "① 音声ファイルを送信中...";
+                loadingSub.innerText = "GoogleのAIサーバーへ直接アップロードしています。";
+
+                const mimeType = selectedFileObj.type || (selectedFileObj.name.toLowerCase().endsWith('.m4a') ? 'audio/mp4' : 'audio/mp3');
+                const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${appState.apiKey}`;
+                
+                const uploadResponse = await fetch(uploadUrl, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${appState.openaiKey}` },
-                    body: formData
+                    headers: {
+                        'X-Goog-Upload-Protocol': 'raw',
+                        'X-Goog-Upload-Command': 'start, upload, finalize',
+                        'X-Goog-Upload-Header-Content-Length': selectedFileObj.size.toString(),
+                        'X-Goog-Upload-Header-Content-Type': mimeType,
+                        'Content-Type': mimeType
+                    },
+                    body: selectedFileObj
                 });
 
-                if (!whisperRes.ok) {
-                    const err = await whisperRes.json().catch(() => ({}));
-                    throw new Error(`Whisperエラー: ${err.error?.message || whisperRes.statusText}`);
-                }
+                const uploadResult = await uploadResponse.json();
+                if (!uploadResponse.ok) throw new Error(`送信失敗: ${uploadResult.error?.message}`);
+                
+                const fileUri = uploadResult.file.uri;
 
-                const part = await whisperRes.text();
-                transcriptParts.push(part.trim());
+                loadingText.innerText = "② 送信完了！処理を委託中...";
+                loadingSub.innerHTML = "裏側のGASへデータを引き渡しています。";
+
+                // GASに「あとは全部裏でやっといて！」とデータを丸投げする
+                fetch(appState.gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        secretToken: appState.gasSecret,
+                        fileUri: fileUri,
+                        mimeType: mimeType,
+                        durationMinutes: durationMinutes,
+                        geminiKey: appState.apiKey,
+                        modelName: appState.modelName
+                    })
+                });
+
+                // GASへの送信指示が完了したため、スマホ側はここで「おしまい」にして閉じて良い！
+                alert("✨ 音声の送信に成功しました！\n\nスマホの画面を今すぐ閉じて（スリープさせて）大丈夫です。数分後に自動的にGoogleドライブ、カレンダー、ToDoにすべて反映されます。");
+                closeMemoModal();
+
+            } catch (error) {
+                alert(`エラーが発生しました: ${error.message}`);
+                document.getElementById('memo-buttons').classList.remove('hidden');
+                document.getElementById('loading-indicator').classList.add('hidden');
             }
-
-            transcript = transcriptParts.join('\n\n');
-            document.getElementById('chunk-info').classList.add('hidden');
-
-        } else {
-            // テキスト入力の場合
-            setStep(2);
-            setProgress(30, 'テキストを取得中...', '');
-            transcript = textInput;
         }
-
-        // ===== STEP 3: Gemini AI解析 =====
-        setStep(3);
-        setProgress(70, 'Geminiが解析中...', '要約・タスク抽出中');
-
-        const geminiPrompt = `
-以下のテキスト（音声の文字起こし）を解析し、必ず以下のフォーマットで出力してください。
-マークダウンのコードブロックや余分な装飾は不要です。
-
-#TITLE
-(内容を表す短いタイトル、15文字以内)
-
-#SUMMARY
-- (重要ポイント1)
-- (重要ポイント2)
-- (重要ポイント3)
-
-#DETAILS
-(詳細なまとめ。決定事項、重要情報を含む文章。改行で読みやすく)
-
-#TASKS
-- (具体的なアクションアイテム1)
-- (具体的なアクションアイテム2)
-
----
-【対象テキスト】
-${transcript}
-`;
-
-        const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${appState.geminiModel}:generateContent?key=${appState.geminiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: geminiPrompt }] }],
-                    generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
-                })
-            }
-        );
-
-        if (!geminiRes.ok) {
-            const err = await geminiRes.json().catch(() => ({}));
-            throw new Error(`Geminiエラー: ${err.error?.message || geminiRes.statusText}`);
-        }
-
-        const geminiData = await geminiRes.json();
-        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        // セクション抽出
-        const getSection = (text, header, nextHeaders) => {
-            const nextPat = nextHeaders.length > 0 ? `(?=${nextHeaders.map(h => `\\n#${h}`).join('|')})` : '';
-            const regex = new RegExp(`#${header}\\s*\\n([\\s\\S]*?)(?:\\n#(?:${nextHeaders.join('|')})|$)`, 'i');
-            const m = text.match(regex);
-            return m ? m[1].trim() : '';
-        };
-
-        const titleStr = getSection(rawText, 'TITLE', ['SUMMARY','DETAILS','TASKS']) || '無題の記録';
-        const summaryStr = getSection(rawText, 'SUMMARY', ['DETAILS','TASKS']);
-        const detailsStr = getSection(rawText, 'DETAILS', ['TASKS']);
-        const tasksStr = getSection(rawText, 'TASKS', []);
-
-        const summaries = summaryStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(Boolean);
-        const tasksText = tasksStr.split('\n').map(s => s.replace(/^[-*・]\s*/, '').trim()).filter(Boolean);
-
-        const newLogId = Date.now().toString();
-        const tasks = tasksText.map((t, i) => ({
-            id: `${newLogId}_task_${i}`,
-            text: t,
-            completed: false,
-            sourceLogId: newLogId
-        }));
-
-        const newLog = {
-            id: newLogId,
-            time: new Date().toISOString(),
-            title: titleStr.substring(0, 30),
-            summaries,
-            details: detailsStr,
-            fullTranscript: transcript,
-            tasks
-        };
-
-        // ===== STEP 4: 保存 =====
-        setStep(4);
-        setProgress(95, '保存中...', '');
-        await dbPut(newLog);
-        setProgress(100, '完了！', '');
-
-        await new Promise(r => setTimeout(r, 600));
-        appState.selectedDate = getTodayStr();
-        await renderData();
-        closeMemoModal();
-        showMessage('✨ 文字起こしとAI解析が完了しました！');
-
-    } catch (err) {
-        console.error(err);
-        showError(err.message || '不明なエラーが発生しました');
-    }
-}
-
-// ==============================
-// GAS連携（手動）
-// ==============================
-async function executeSync() {
-    const logs = await dbGetAll();
-    const log = logs.find(l => l.id === currentSyncLogId);
-    if (!log) return;
-
-    const title = document.getElementById('sync-title').value.trim();
-    const tasks = document.getElementById('sync-tasks').value.split('\n').map(t => t.trim()).filter(Boolean);
-
-    document.getElementById('sync-buttons').classList.add('hidden');
-    document.getElementById('sync-loading').classList.remove('hidden');
-    document.getElementById('sync-loading').classList.add('flex');
-
-    try {
-        const res = await fetch(appState.gasUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ secretToken: appState.gasSecret, title, details: log.details, tasks })
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            showMessage('✨ カレンダーとToDoに登録しました！');
-            closeSyncModal();
-        } else {
-            throw new Error(data.message || '連携エラー');
-        }
-    } catch (err) {
-        showMessage(`連携エラー: ${err.message}`, 'error');
-        closeSyncModal();
-    }
-}
-
-// ==============================
-// 日次サマリー生成
-// ==============================
-async function generateDailySummary() {
-    const logs = await dbGetAll();
-    const todayLogs = logs.filter(l => getLogDateStr(l.time) === appState.selectedDate);
-
-    if (todayLogs.length === 0) {
-        showMessage('この日の記録がありません', 'error');
-        return;
-    }
-
-    const summaryContainer = document.getElementById('summary-container');
-    summaryContainer.innerHTML = `
-        <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100 text-center">
-            <div class="w-10 h-10 border-4 border-gray-100 border-t-brand rounded-full animate-spin mx-auto mb-3"></div>
-            <p class="text-[13px] font-bold text-brand">Geminiが今日全体を分析中...</p>
-        </div>`;
-
-    const combined = todayLogs.map((l, i) =>
-        `【記録${i+1}: ${l.title} (${formatTimeHM(l.time)})】\n${l.details}\n\nタスク: ${l.tasks.map(t=>t.text).join(', ')}`
-    ).join('\n\n---\n\n');
-
-    const prompt = `
-以下は今日の業務記録まとめです。全体を俯瞰して分析し、以下フォーマットで出力してください。
-
-#TODAY_SUMMARY
-(今日一日の全体的な成果・活動のまとめ。3〜5文)
-
-#KEY_ACHIEVEMENTS
-- (今日の主要な成果1)
-- (今日の主要な成果2)
-
-#TOMORROW_TASKS
-- (明日やるべきこと1)
-- (明日やるべきこと2)
-
-#REFLECTIONS
-(今日の振り返り・改善点)
-
----
-【今日の記録】
-${combined}
-`;
-
-    try {
-        const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${appState.geminiModel}:generateContent?key=${appState.geminiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-                })
-            }
-        );
-        const data = await res.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        const getSection = (text, header, nextHeaders) => {
-            const regex = new RegExp(`#${header}\\s*\\n([\\s\\S]*?)(?:\\n#(?:${nextHeaders.join('|')})|$)`, 'i');
-            const m = text.match(regex);
-            return m ? m[1].trim() : '';
-        };
-
-        const todaySummary = getSection(rawText, 'TODAY_SUMMARY', ['KEY_ACHIEVEMENTS','TOMORROW_TASKS','REFLECTIONS']);
-        const achievements = getSection(rawText, 'KEY_ACHIEVEMENTS', ['TOMORROW_TASKS','REFLECTIONS']);
-        const tomorrowTasks = getSection(rawText, 'TOMORROW_TASKS', ['REFLECTIONS']);
-        const reflections = getSection(rawText, 'REFLECTIONS', []);
-
-        const achList = achievements.split('\n').map(s => s.replace(/^[-*・]\s*/,'')).filter(Boolean);
-        const tmList = tomorrowTasks.split('\n').map(s => s.replace(/^[-*・]\s*/,'')).filter(Boolean);
-
-        summaryContainer.innerHTML = `
-            <div class="fade-in space-y-4">
-                <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="sun" class="w-5 h-5 text-yellow-500"></i>
-                        <span class="text-[13px] font-black text-brand">今日の総括</span>
-                    </div>
-                    <p class="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">${todaySummary}</p>
-                </div>
-
-                <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="trophy" class="w-5 h-5 text-yellow-500"></i>
-                        <span class="text-[13px] font-black text-brand">主な成果</span>
-                    </div>
-                    <ul class="space-y-2">
-                        ${achList.map(a => `<li class="flex items-start gap-2 text-[13px] text-gray-700"><span class="w-1.5 h-1.5 bg-brand rounded-full mt-2 shrink-0"></span>${a}</li>`).join('')}
-                    </ul>
-                </div>
-
-                <div class="bg-brand rounded-3xl p-6 shadow-sm">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="arrow-right-circle" class="w-5 h-5 text-white"></i>
-                        <span class="text-[13px] font-black text-white">明日やること</span>
-                    </div>
-                    <ul class="space-y-2">
-                        ${tmList.map(t => `<li class="flex items-start gap-2 text-[13px] text-gray-300"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 shrink-0"></span>${t}</li>`).join('')}
-                    </ul>
-                </div>
-
-                <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="lightbulb" class="w-5 h-5 text-orange-400"></i>
-                        <span class="text-[13px] font-black text-brand">振り返り</span>
-                    </div>
-                    <p class="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">${reflections}</p>
-                </div>
-            </div>`;
-        lucide.createIcons();
-    } catch (err) {
-        summaryContainer.innerHTML = `<div class="bg-red-50 rounded-2xl p-4 text-[13px] text-red-600 font-medium">エラー: ${err.message}</div>`;
-    }
-}
-
-// ==============================
-// レンダリング
-// ==============================
-async function renderData() {
-    const logs = await dbGetAll();
-    renderCalendar(logs);
-    renderTimeline(logs);
-    renderTasks(logs);
-    lucide.createIcons();
-}
-
-async function renderSummaryView() {
-    const logs = await dbGetAll();
-    const todayLogs = logs.filter(l => getLogDateStr(l.time) === appState.selectedDate);
-    const container = document.getElementById('summary-container');
-
-    if (todayLogs.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-40 text-gray-400">
-                <i data-lucide="calendar-x" class="w-8 h-8 mb-3 opacity-20"></i>
-                <p class="text-[13px] font-bold">この日の記録がありません</p>
-            </div>`;
-        lucide.createIcons();
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="bg-surface rounded-3xl p-5 shadow-sm border border-gray-100 mb-4">
-            <p class="text-[13px] text-gray-600 mb-4">${appState.selectedDate} の記録 <span class="font-black text-brand">${todayLogs.length}件</span> を分析します。</p>
-            <button onclick="generateDailySummary()" class="w-full bg-brand text-white font-bold py-4 rounded-2xl text-[14px] flex items-center justify-center gap-2 shadow-lg">
-                <i data-lucide="sparkles" class="w-5 h-5"></i> 今日の日次サマリーを生成
-            </button>
-        </div>`;
-    lucide.createIcons();
-}
-
-function renderCalendar(logs) {
-    const container = document.getElementById('calendar-container');
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const datesWithData = new Set(logs.map(log => getLogDateStr(log.time)));
-
-    let html = '';
-    for (let i = 14; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-        const isSelected = dateStr === appState.selectedDate;
-        const hasData = datesWithData.has(dateStr);
-        const bgClass = isSelected ? 'bg-brand' : 'bg-surface border border-gray-100';
-        const textColor = isSelected ? 'text-white' : 'text-gray-800';
-        const dotHtml = hasData
-            ? `<div class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-brand'} mt-1.5"></div>`
-            : `<div class="w-1.5 h-1.5 mt-1.5"></div>`;
-
-        html += `
-        <button onclick="selectDate('${dateStr}')" class="flex flex-col items-center justify-center min-w-[56px] h-[72px] rounded-[1.2rem] ${bgClass} transition-all shrink-0 shadow-sm">
-            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">${dayNames[d.getDay()]}</span>
-            <span class="text-[18px] font-black ${textColor} leading-none mt-1">${d.getDate()}</span>
-            ${dotHtml}
-        </button>`;
-    }
-    container.innerHTML = html;
-    setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 10);
-}
-
-function renderTimeline(logs) {
-    const container = document.getElementById('timeline-container');
-    const filteredLogs = logs.filter(log => getLogDateStr(log.time) === appState.selectedDate);
-
-    if (filteredLogs.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-48 text-gray-400">
-                <i data-lucide="inbox" class="w-8 h-8 mb-3 opacity-20"></i>
-                <p class="text-[13px] font-bold">この日の記録はありません</p>
-                <p class="text-[11px] mt-1">「記録を追加」から録音をアップしてください</p>
-            </div>`;
-        return;
-    }
-
-    // 時刻の新しい順
-    const sorted = [...filteredLogs].sort((a, b) => new Date(b.time) - new Date(a.time));
-
-    let html = '';
-    sorted.forEach(log => {
-        const summariesHtml = log.summaries.map(s => `
-            <li class="text-[13px] text-gray-600 font-medium leading-relaxed mb-2 flex items-start gap-2">
-                <span class="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></span>
-                <span>${s}</span>
-            </li>`).join('');
-
-        const taskCount = log.tasks.filter(t => !t.completed).length;
-        const taskBadge = taskCount > 0
-            ? `<span class="bg-accent/10 text-accent text-[10px] font-black px-2 py-0.5 rounded-full">${taskCount}タスク</span>`
-            : '';
-
-        html += `
-        <div class="bg-surface rounded-3xl p-6 shadow-sm border border-gray-100/50 fade-in relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-1.5 h-full bg-brand rounded-l-3xl opacity-10"></div>
-
-            <div class="flex justify-between items-start mb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="file-audio" class="w-4 h-4 text-brand"></i>
-                    <span class="text-[12px] font-black text-brand tracking-widest">${formatTimeHM(log.time)}</span>
-                    ${taskBadge}
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="openSyncModal('${log.id}')" class="text-[11px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full flex items-center gap-1 hover:bg-accent/20 transition">
-                        <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i> 連携
-                    </button>
-                    <button onclick="deleteLogConfirm('${log.id}')" class="text-gray-300 hover:text-red-500 transition ml-1 p-1">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
-
-            <h3 class="text-[18px] font-black text-gray-900 mb-4 leading-snug">${log.title}</h3>
-
-            <ul class="mb-5">${summariesHtml}</ul>
-
-            <div class="flex gap-2">
-                <button onclick="toggleSection('details-${log.id}')" class="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 text-[12px] font-bold py-2.5 rounded-xl transition flex justify-center items-center gap-1.5">
-                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 議事録
-                </button>
-                <button onclick="toggleSection('transcript-${log.id}')" class="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 text-[12px] font-bold py-2.5 rounded-xl transition flex justify-center items-center gap-1.5">
-                    <i data-lucide="align-left" class="w-3.5 h-3.5"></i> 全文
-                </button>
-            </div>
-
-            <div id="details-${log.id}" class="hidden mt-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <p class="text-[13px] text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">${log.details || '詳細なし'}</p>
-            </div>
-            <div id="transcript-${log.id}" class="hidden mt-3 p-5 bg-brand rounded-2xl">
-                <p class="text-[13px] text-gray-300 font-medium leading-relaxed whitespace-pre-wrap">${log.fullTranscript}</p>
-            </div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function renderTasks(logs) {
-    const container = document.getElementById('tasks-container');
-    const badge = document.getElementById('task-badge');
-
-    let allTasks = [];
-    logs.forEach(log => {
-        log.tasks.forEach(t => allTasks.push({ ...t, sourceTitle: log.title, sourceTime: log.time, logId: log.id }));
-    });
-
-    const incomplete = allTasks.filter(t => !t.completed).length;
-    if (incomplete > 0) { badge.textContent = incomplete; badge.classList.remove('hidden'); }
-    else { badge.classList.add('hidden'); }
-
-    if (allTasks.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-[13px] text-gray-400 font-bold">タスクがありません</div>';
-        return;
-    }
-
-    // 未完了を上に
-    const sorted = [...allTasks].sort((a, b) => Number(a.completed) - Number(b.completed));
-    let html = '';
-    sorted.forEach(task => {
-        const textStyle = task.completed ? 'line-through text-gray-400' : 'text-gray-800 font-bold';
-        html += `
-        <div class="flex items-center justify-between p-5 border-b border-gray-50 hover:bg-gray-50 transition group">
-            <label class="flex items-start gap-4 flex-1 cursor-pointer">
-                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.logId}','${task.id}')" class="mt-0.5 w-5 h-5 text-brand rounded-full border-gray-300 focus:ring-brand">
-                <div>
-                    <span class="text-[14px] block mb-1 ${textStyle} leading-snug">${task.text}</span>
-                    <span class="text-[10px] text-gray-400 font-bold">${task.sourceTitle} · ${formatTimeHM(task.sourceTime)}</span>
-                </div>
-            </label>
-            <button onclick="deleteTaskConfirm('${task.logId}','${task.id}')" class="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-// ==============================
-// インタラクション
-// ==============================
-function toggleSection(id) {
-    document.getElementById(id).classList.toggle('hidden');
-}
-
-async function toggleTask(logId, taskId) {
-    const logs = await dbGetAll();
-    const log = logs.find(l => l.id === logId);
-    if (!log) return;
-    const task = log.tasks.find(t => t.id === taskId);
-    if (task) task.completed = !task.completed;
-    await dbPut(log);
-    await renderData();
-}
-
-async function deleteTaskConfirm(logId, taskId) {
-    if (!confirm('このタスクを削除しますか？')) return;
-    const logs = await dbGetAll();
-    const log = logs.find(l => l.id === logId);
-    if (!log) return;
-    log.tasks = log.tasks.filter(t => t.id !== taskId);
-    await dbPut(log);
-    await renderData();
-}
-
-async function deleteLogConfirm(logId) {
-    if (!confirm('このノートを削除しますか？')) return;
-    await dbDelete(logId);
-    await renderData();
-    showMessage('削除しました');
-}
-
-async function selectDate(dateStr) {
-    appState.selectedDate = dateStr;
-    await renderData();
-}
-
-// ==============================
-// データ管理
-// ==============================
-async function updateStorageInfo() {
-    const logs = await dbGetAll();
-    const totalChars = logs.reduce((sum, l) => sum + (l.fullTranscript?.length || 0) + (l.details?.length || 0), 0);
-    document.getElementById('storage-info').innerHTML =
-        `保存済み記録: <strong>${logs.length}件</strong>　文字起こし総量: <strong>約${Math.round(totalChars/1000)}K文字</strong>`;
-}
-
-async function exportAllData() {
-    const logs = await dbGetAll();
-    const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bizlog_export_${getTodayStr().replace(/\//g,'-')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showMessage('エクスポートしました');
-}
-
-async function clearAllData() {
-    if (!confirm('すべての記録とタスクを完全に削除しますか？')) return;
-    await dbClear();
-    await renderData();
-    closeSettingsModal();
-    showMessage('データを削除しました');
-}
-</script>
+    </script>
 </body>
 </html>
